@@ -1,6 +1,6 @@
-newsID 10 : hey fuck off
+newsID 12 : spring fest
 
 
-fuck off
+spring fest starts tomorrow
 
-2017-01-01
+2015-02-03

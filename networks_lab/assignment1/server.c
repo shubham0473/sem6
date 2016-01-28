@@ -19,7 +19,7 @@
 #define MAX_HEAD_SIZE 100
 #define MAX_BODY_SIZE 1000
 #define SOCKET_TCP 23485
-#define SOCKET_UDP 23469
+#define SOCKET_UDP 23452
 #define BUF_SIZE 1000
 
 char *server = "10.5.18.68";
@@ -119,8 +119,7 @@ int main(int argc , char *argv[])
     int child_tcp_pid;
 
     if((child_tcp_pid = fork())==0){
-        //TCP
-        //Listen TCP
+        //UDP
         MYSQL *conn;
         MYSQL_RES *res;
         MYSQL_ROW row;
@@ -135,25 +134,29 @@ int main(int argc , char *argv[])
 
         char buf[BUF_SIZE] = {'\0'};
         int b_recv   = 0; // Number of bytes received.
-
-        // Flags for recvfrom.
         int flags = 0;
-        printf("enter admin\n");
-        b_recv = recvfrom (sock_UDP, buf, BUF_SIZE, flags, (struct sockaddr *) &client_UDP, &addrlen);
-        if (b_recv == -1)
-        {
-            perror ("Server: recvfrom failed");
-            exit (1);
+        // Flags for recvfrom.
+        while(1){
+            b_recv = recvfrom(sock_UDP, buf, BUF_SIZE, flags, (struct sockaddr *)&client_UDP, &addrlen);
+            printf("heysdf\n");
+            if (b_recv == -1)
+            {
+                perror ("Server: recvfrom failed");
+                exit (1);
+            }
+
+            printf ("Date received = |%s|\n", buf); //////////////////USE IN SQL QUERY
+            sprintf(query, "DELETE FROM tb_news WHERE tb_news.news_date < %s", buf);
+            printf("%s\n", query);
+            if (mysql_query(conn, query)) {
+                fprintf(stderr, "%s\n", mysql_error(conn));
+                exit(1);
+            }
+            res = mysql_use_result(conn);
+            printf("Deleted\n");
         }
 
-        printf ("Date received = |%s|\n", buf); //////////////////USE IN SQL QUERY
-        sprintf(query, "DELETE FROM tb_news WHERE tb_news.news_date < %s", buf );
-        if (mysql_query(conn, query)) {
-            fprintf(stderr, "%s\n", mysql_error(conn));
-            exit(1);
-        }
-        res = mysql_use_result(conn);
-        printf("Deleted\n");
+
 
         /****************** Close ****************************************/
         status_UDP = close (sock_UDP); // Close the socket file descriptor.
@@ -162,16 +165,14 @@ int main(int argc , char *argv[])
             perror ("Server close failed");
             exit (1);
         }
-
         mysql_free_result(res);
         mysql_close(conn);
-        close(sock_TCP);
         exit(0);
 
     }
     else
     {
-        //UDP
+        //TCP
         listen(sock_TCP , 3);
         int child;
         //Accept and incoming connection
@@ -279,7 +280,7 @@ int main(int argc , char *argv[])
         exit(0);
 
     }
-
+    close(sock_UDP);
     return 0;
 
 }

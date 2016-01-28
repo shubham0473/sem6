@@ -10,7 +10,7 @@
 
 #define ACADEMIC 1
 #define NON_ACADEMIC 2
-#define SOCKET_NO 23481
+#define SOCKET_NO 23485
 #define BUF_SIZE 1000
 
 
@@ -19,6 +19,11 @@ int main(int argc , char *argv[])
     int sock, rst;
     struct sockaddr_in server;
     char message[1000] , server_reply[2000];
+
+    if(argc < 2){
+        printf("Enter IP of the server\n");
+        exit(0);
+    }
 
     //Create socket
     sock = socket(AF_INET ,SOCK_STREAM , IPPROTO_TCP);
@@ -32,8 +37,8 @@ int main(int argc , char *argv[])
     server.sin_family = AF_INET;
     server.sin_port = htons( SOCKET_NO );
 
-    rst = inet_pton (AF_INET, "127.0.0.1", &server.sin_addr); /* To
-                              * type conversion of the pointer here. */
+    rst = inet_pton (AF_INET, argv[1], &server.sin_addr); /* To
+    * type conversion of the pointer here. */
     if (rst <= 0)
     {
         perror ("Client Presentation to network address conversion.\n");
@@ -70,28 +75,28 @@ int main(int argc , char *argv[])
     if(!strcmp(buf, "ok"))
     {
         int option;
-		printf("Select newsgroup (1. Academic 2.Non-academic):");
-		scanf("%d", &option);
-		if(option == 1) {
-			rst = send(sock, "academic", BUF_SIZE, 0);
-		}
-		else {
-			rst = send(sock, "non-academic", BUF_SIZE, 0);
-		}
-    	if (rst == -1)
-    	{
-    	   	perror ("Client: Send failed");
-    	   	exit (1);
-    	}
+        printf("Select newsgroup (1. Academic 2.Non-academic):");
+        scanf("%d", &option);
+        if(option == 1) {
+            rst = send(sock, "academic", BUF_SIZE, 0);
+        }
+        else {
+            rst = send(sock, "non-academic", BUF_SIZE, 0);
+        }
+        if (rst == -1)
+        {
+            perror ("Client: Send failed");
+            exit (1);
+        }
 
         printf("Enter date of news article (yyyymmdd): ");
         scanf("%s", buf);
         rst = send (sock, buf, BUF_SIZE, 0);
-            if (rst == -1)
-            {
-                perror ("Client: Send failed");
-                exit (1);
-            }
+        if (rst == -1)
+        {
+            perror ("Client: Send failed");
+            exit (1);
+        }
 
         printf("Enter headline: ");
         getchar();
@@ -111,7 +116,7 @@ int main(int argc , char *argv[])
             perror ("Client: Send failed");
             exit (1);
         }
-     }
+    }
 
     close(sock);
     return 0;
