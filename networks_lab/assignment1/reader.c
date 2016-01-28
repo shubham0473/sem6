@@ -8,7 +8,7 @@
 #include <string.h> // For memset.
 #include <arpa/inet.h> // For inet_pton (), inet_ntop ().
 
-int port_num = 23481;
+int port_num = 23485;
 #define BUF_SIZE 1000
 
 
@@ -118,10 +118,6 @@ void main ()
     	   		exit (1);
     		}
         }
-		// do{ //receive and display all news headlines
-		//
-        // }
-		// while();
 
 		printf("Select an article to view:");
 
@@ -165,8 +161,6 @@ void main ()
 		}
 
      }
-
-
 
 
     /****************** Close ****************************************/

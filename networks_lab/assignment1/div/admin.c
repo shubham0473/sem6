@@ -8,26 +8,26 @@
 #include <string.h> // For memset.
 #include <arpa/inet.h> // For inet_pton ().
 
-int port_num = 23465;
+int port_num = 23469;
 #define BUF_SIZE 30
 
-void main () 
+void main ()
 {
     int rst; // Return status of functions.
     int sfd; // Socket file descriptor.
-    
+
 
 
     /***************** Create a socket *******************************/
     sfd = socket (AF_INET, SOCK_DGRAM, 0); /* AF_INET --> IPv4,
                 * SOCK_DGRAM --> UDP Protocol, 0 --> for the protocol. */
-    if (sfd == -1) 
+    if (sfd == -1)
     {
         perror ("Client_1.c socket error");
         exit (1);
     }
     printf ("Socket fd = %d\n", sfd);
-        
+
 
 
 
@@ -35,48 +35,48 @@ void main ()
 
 
     /****************** Send - receive messages **********************/
-    
+
     printf("Enter date before which you wish to delete articles (yyyymmdd):");
     char msg[10];
     scanf("%s", msg);
 
     char msg_len = 10;
-    /* int  flags   = 0 | MSG_DONTWAIT; /* Client doesn't wait even if 
+    /* int  flags   = 0 | MSG_DONTWAIT; /* Client doesn't wait even if
         * server is not running.
         * The client will return with EAGAIN if the send-buffer is full.
         * */
-    int flags = 0; /* Even Now the client doesn't wait even if server 
-        * is not running. 
+    int flags = 0; /* Even Now the client doesn't wait even if server
+        * is not running.
         * Now the client will wait if its send-buffer is full.
         * */
-    
-    struct sockaddr_in dest_addr; /* sockaddr_in because we are using 
-            * IPv4. Type casted to struct sockaddr * at time of 
+
+    struct sockaddr_in dest_addr; /* sockaddr_in because we are using
+            * IPv4. Type casted to struct sockaddr * at time of
             * various system calls. */
-            
-    socklen_t addrlen = sizeof (struct sockaddr_in); 
-    
-    
+
+    socklen_t addrlen = sizeof (struct sockaddr_in);
+
+
     // Initializing destination address.
     memset (&dest_addr, 0, addrlen); // Initializes address to zero.
 
     dest_addr.sin_family = AF_INET;  // Address is in IPv4 format.
     dest_addr.sin_port   = htons (port_num);  // Port number of the server.
-    
-    
+
+
     rst = inet_pton (AF_INET, "127.0.0.1", &dest_addr.sin_addr); /* Note
             * that third field should point to an in_addr (in6_addr). */
     if (rst <= 0)
     {
         perror ("Client Presentation to network address conversion.\n");
         exit (1);
-    }        
-    
-    
+    }
+
+
     /* Sending message to the server. */
-    rst = sendto (sfd, msg, 20, flags, (struct sockaddr *) &dest_addr, 
+    rst = sendto (sfd, msg, 20, flags, (struct sockaddr *) &dest_addr,
                     sizeof (struct sockaddr_in)); /* Value of rst is 20,
-        * on successful transmission; i.e. It has nothing to do with a 
+        * on successful transmission; i.e. It has nothing to do with a
         * NULL terminated string.
         */
     if (rst < 0)
@@ -84,18 +84,18 @@ void main ()
         perror ("Client: Sendto function call failed");
         exit (1);
     }
-    else 
+    else
     {
         printf ("Sent data size = %d\n", rst);
     }
-    
+
     /*
     char buf[BUF_SIZE] = {'\0'};
     struct sockaddr_in sender_addr;
     socklen_t sender_len;
-    // Receive a message from the server. 
-    rst = recvfrom (sfd, buf, BUF_SIZE, flags, 
-                    (struct sockaddr *) &sender_addr, 
+    // Receive a message from the server.
+    rst = recvfrom (sfd, buf, BUF_SIZE, flags,
+                    (struct sockaddr *) &sender_addr,
                     &sender_len);
     if (rst < 0)
     {
@@ -103,18 +103,18 @@ void main ()
         exit (1);
     }
     printf ("Message from server = |%s|\n", buf);
-    
-    // Address of the server. 
-    const char *buf2 = inet_ntop (AF_INET, (struct sockaddr *) &sender_addr, buf, 
+
+    // Address of the server.
+    const char *buf2 = inet_ntop (AF_INET, (struct sockaddr *) &sender_addr, buf,
                         BUF_SIZE);
     if (buf2 == NULL)
     {
         perror ("Client: Conversion of sender's address to presentation failed");
         exit (1);
     }
-    
+
     printf ("Servers address = %s\n", buf2);
-    
+
     */
 
 
