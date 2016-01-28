@@ -6,8 +6,13 @@
 #include <unistd.h>    //write
 #include <pthread.h> //for threading , link with lpthread
 #include <mysql.h>
-#include <sys/prctl.h>
 #include <signal.h>
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <netinet/in.h>
+#include <net/if.h>
+#include <netdb.h>
+#include <ifaddrs.h>
 
 #define ACADEMIC 1
 #define NON_ACADEMIC 2
@@ -16,8 +21,6 @@
 #define SOCKET_TCP 23485
 #define SOCKET_UDP 23469
 #define BUF_SIZE 1000
-
-
 
 char *server = "10.5.18.68";
 char *user = "13CS30030";
@@ -111,7 +114,6 @@ int main(int argc , char *argv[])
 
     init_ports();
     bind_sockets();
-    // signal(SIGINT, exit_function);
 
     int parent_pid = getpid();
     int child_tcp_pid;

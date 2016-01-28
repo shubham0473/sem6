@@ -13,15 +13,20 @@ int port_num = 23485;
 
 
 
-void main ()
+void main (int argc , char *argv[])
 {
+    if(argc < 2){
+        printf("Enter IP of the server\n");
+        exit(0);
+    }
+
     int rst; // Return status of functions.
     int cfd; // File descriptor for the client.
 
     /**************** Create a socket. *******************************/
     int sfd; // Socket file descriptor.
     sfd = socket (AF_INET, SOCK_STREAM, 0); /* AF_INET --> IPv4,
-             * SOCK_STREAM --> TCP Protocol, 0 --> for the protocol. */
+    * SOCK_STREAM --> TCP Protocol, 0 --> for the protocol. */
     if (sfd == -1)
     {
         perror ("Client: socket error");
@@ -42,8 +47,8 @@ void main ()
     srv_addr.sin_family = AF_INET; // IPv4.
     srv_addr.sin_port   = htons (port_num); // Port Number.
 
-    rst = inet_pton (AF_INET, "127.0.0.1", &srv_addr.sin_addr); /* To
-                              * type conversion of the pointer here. */
+    rst = inet_pton (AF_INET, argv[1], &srv_addr.sin_addr); /* To
+    * type conversion of the pointer here. */
     if (rst <= 0)
     {
         perror ("Client Presentation to network address conversion.\n");
@@ -85,82 +90,82 @@ void main ()
 
     if(!strcmp(buf, "ok"))
     {
-		int option;
-		printf("Select newsgroup (1. Academic 2.Non-academic):");
-		scanf("%d", &option);
-		if(option == 1) {
-			rst = send(sfd, "academic", BUF_SIZE, 0);
-		}
-		else {
-			rst = send(sfd, "non-academic", BUF_SIZE, 0);
-		}
-    		if (rst == -1)
-    		{
-    	   		perror ("Client: Send failed");
-    	   		exit (1);
-    		}
+        int option;
+        printf("Select newsgroup (1. Academic 2.Non-academic):");
+        scanf("%d", &option);
+        if(option == 1) {
+            rst = send(sfd, "academic", BUF_SIZE, 0);
+        }
+        else {
+            rst = send(sfd, "non-academic", BUF_SIZE, 0);
+        }
+        if (rst == -1)
+        {
+            perror ("Client: Send failed");
+            exit (1);
+        }
 
 
         while(1){
             rst = recv (sfd, buf, BUF_SIZE, 0);
-    			if (rst == -1)
-    			{
-        			perror ("Client: Receive failed");
-        			exit (1);
-    			}
-                if(strcmp(buf, "END") == 0) break;
-                printf("%s", buf);
+            if (rst == -1)
+            {
+                perror ("Client: Receive failed");
+                exit (1);
+            }
+            if(strcmp(buf, "END") == 0) break;
+            printf("%s", buf);
             rst = send(sfd, "ok", BUF_SIZE, 0);
             memset(buf, 0, sizeof(buf));
             if (rst == -1)
-    		{
-    	   		perror ("Client: Send failed");
-    	   		exit (1);
-    		}
+            {
+                perror ("Client: Send failed");
+                exit (1);
+            }
         }
 
-		printf("Select an article to view:");
+        printf("Select an article to view:");
 
-		scanf("%d", &option);
+        scanf("%d", &option);
 
-		sprintf(buf, "%d", option);
-		rst = send(sfd, buf, BUF_SIZE, 0); //select an article
-		if (rst == -1)
-    		{
-    	   		perror ("Client: Send failed");
-    	   		exit (1);
-    		}
+        sprintf(buf, "%d", option);
+        rst = send(sfd, buf, BUF_SIZE, 0); //select an article
+        if (rst == -1)
+        {
+            perror ("Client: Send failed");
+            exit (1);
+        }
 
-		rst = recv (sfd, buf, BUF_SIZE, 0); //receive fulltext
- 		if (rst == -1)
- 		{
-  			perror ("Client: Receive failed");
-       			exit (1);
-  		}
+        rst = recv (sfd, buf, BUF_SIZE, 0); //receive fulltext
+        if (rst == -1)
+        {
+            perror ("Client: Receive failed");
+            exit (1);
+        }
 
-		//printf("Here is your article:\n%s\n\n", buf); //remove if xterm works
+        //printf("Here is your article:\n%s\n\n", buf); //remove if xterm works
 
-		FILE* fp = fopen("article.txt", "w");
-		fprintf(fp, "%s", buf);
-		fclose(fp);
+        FILE* fp = fopen("article.txt", "w");
+        fprintf(fp, "%s", buf);
+        fclose(fp);
 
-		int cid = fork();
-		if(cid == 0) {
-			printf("Child process says hi!");
-			rst = execlp("gedit", "gedit", "article.txt", (const char*) NULL);
-			if(rst == -1)
-				perror("Error in exec");
-		}
-		else {
-			printf("Parent process says hi!");
-			char c;
-			scanf("%c", &c);
-			if(c == '#') {
-				kill(cid, SIGKILL);
-			}
-		}
+        int cid = fork();
+        if(cid == 0) {
+            printf("Child process says hi!");
+            rst = execlp("gedit", "gedit", "article.txt", (const char*) NULL);
+            if(rst == -1)
+            perror("Error in exec");
+        }
+        else {
+            printf("Parent process says hi!");
+            char c;
+            scanf("%c", &c);
+            if(c == '#') {
+                kill(cid, SIGKILL);
+            }
+        }
 
-     }
+    }
 
 
     /****************** Close ****************************************/
