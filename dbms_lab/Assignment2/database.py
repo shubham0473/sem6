@@ -7,7 +7,9 @@ cursor = conn.cursor()
 pp = pprint.PrettyPrinter(indent = 4)
 
 print "\nQuery One"
-cursor.execute("""select *
+
+name = raw_input("Enter actor name!\n")
+query = """select *
 from tb_movie
 where tb_movie.movID in
 (
@@ -17,10 +19,11 @@ where tb_movie.movID in
  (
  select actorID
  from tb_actor
- where tb_actor.fname="sharukh"
+ where tb_actor.fname= "{0}"
  and tb_actor.lname="khan"
  )
-);""")
+);""".format(name)
+cursor.execute(query)
 
 row = cursor.fetchall()
 for result in row:
