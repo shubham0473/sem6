@@ -11,6 +11,8 @@
 int port_num = 23481;
 #define BUF_SIZE 1000
 
+
+
 void main ()
 {
     int rst; // Return status of functions.
@@ -63,7 +65,7 @@ void main ()
     //printf ("Out of sleep\n");
 
     /**************** Send-Receive messages ************************/
-    char buf[BUF_SIZE] = {'\0'};
+    char buf[BUF_SIZE];
 
     printf ("Sending reader identification.\n");
     rst = send (sfd, "reader", BUF_SIZE, 0);
@@ -98,16 +100,28 @@ void main ()
     	   		exit (1);
     		}
 
-		do{ //receive and display all news headlines
-			rst = recv (sfd, buf, BUF_SIZE, 0);
+
+        while(1){
+            rst = recv (sfd, buf, BUF_SIZE, 0);
     			if (rst == -1)
     			{
         			perror ("Client: Receive failed");
         			exit (1);
     			}
-			printf("%s\n\n", buf);
-		}
-		while(strcmp(buf, "END"));
+                if(strcmp(buf, "END") == 0) break;
+                printf("%s", buf);
+            rst = send(sfd, "ok", BUF_SIZE, 0);
+            memset(buf, 0, sizeof(buf));
+            if (rst == -1)
+    		{
+    	   		perror ("Client: Send failed");
+    	   		exit (1);
+    		}
+        }
+		// do{ //receive and display all news headlines
+		//
+        // }
+		// while();
 
 		printf("Select an article to view:");
 
@@ -127,8 +141,6 @@ void main ()
   			perror ("Client: Receive failed");
        			exit (1);
   		}
-
-		printf("Here is your article:\n%s", buf); //remove if xterm works
 
 		//printf("Here is your article:\n%s\n\n", buf); //remove if xterm works
 

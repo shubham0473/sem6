@@ -44,7 +44,6 @@ void init_sql(){
       fprintf(stderr, "%s\n", mysql_error(conn));
       return;
    }
-   else printf("connection successful\n");
 }
 
 void init_ports(){
@@ -112,7 +111,8 @@ int main(int argc , char *argv[])
 {
     int read_size;
     struct sockaddr_in server , client;
-    char client_message[2000];
+    char client_message[1000];
+    char server_message[1000];
     int type=0;
     char head[100], body[1000], date[20];
     char query[10000];
@@ -128,15 +128,16 @@ int main(int argc , char *argv[])
     puts("Waiting for incoming connections...");
 
     //accept connection from an incoming client
-    sock_TCP_client = accept(sock_TCP, (struct sockaddr *)&client_TCP, (socklen_t*)&addrlen);
-    if (sock_TCP_client < 0)
-    {
-        perror("accept failed");
-        return 1;
-    }
-    puts("Connection accepted");
+
 
     while(1){
+        sock_TCP_client = accept(sock_TCP, (struct sockaddr *)&client_TCP, (socklen_t*)&addrlen);
+        if (sock_TCP_client < 0)
+        {
+            perror("accept failed");
+            return 1;
+        }
+        puts("Connection accepted");
         read_size = recv(sock_TCP_client, client_message, 2000, 0);
 
         if(client_message){
@@ -167,7 +168,7 @@ int main(int argc , char *argv[])
                 if(strcmp(client_message, "academic") == 0) type = ACADEMIC;
                 else if(strcmp(client_message, "non-academic") == 0) type = NON_ACADEMIC;
                 printf("%d\n", type);
-                sprintf(query, "SELECT * FROM tb_news WHERE tb_news.type = %d ORDER BY tb_news.news_date DESC", type);
+                sprintf(query, "SELECT newsID, head FROM tb_news WHERE tb_news.type = %d ORDER BY tb_news.news_date DESC", type);
                 if (mysql_query(conn, query)) {
                     fprintf(stderr, "%s\n", mysql_error(conn));
                     exit(1);
@@ -175,10 +176,26 @@ int main(int argc , char *argv[])
                 else printf("query executed\n");
                 res = mysql_use_result(conn);
                 while ((row = mysql_fetch_row(res)) != NULL){
-                    strcpy(client_message, row[0]);
-                    write(sock_TCP_client, client_message, strlen(client_message));
+                    sprintf(server_message, "%s | %s\n", row[0], row[1]);
+                    write(sock_TCP_client, server_message, strlen(server_message));
+                    recv(sock_TCP_client, client_message, 2000, 0);
+                    if(strcmp(client_message, "ok") != 0) break;
                 }
-                write(sock_TCP_client, "END", strlen("END"));
+                sprintf(server_message, "%s", "END\0");
+                write(sock_TCP_client, server_message, strlen(server_message));
+                memset(client_message, 0, sizeof(client_message));
+                read_size = recv(sock_TCP_client, client_message, 2000, 0);
+                int opt = atoi(client_message);
+                sprintf(query, "SELECT * FROM tb_news WHERE tb_news.newsID = %d", opt);
+                if (mysql_query(conn, query)) {
+                    fprintf(stderr, "%s\n", mysql_error(conn));
+                    exit(1);
+                }
+                else printf("query executed\n");
+                res = mysql_use_result(conn);
+                row = mysql_fetch_row(res);
+                sprintf(server_message, "newsID %s : %s\n\n%s\n%s\n", row[0], row[1], row[2], row[3]);
+                write(sock_TCP_client, server_message, strlen(server_message));
 
             }
 
