@@ -310,8 +310,17 @@ char **sh_split_line(char *line)
 
 void reverse_search(int sig) {
     if(sig == SIGQUIT){
+        char *line;
+        printf("Enter command to reverse search:");
+        line = readline("");
+        int index = history_search(line, 0);
+        printf("%d\n", index);
+        char* guess_line;
+        HIST_ENTRY* hist = history_get(index);
+        guess_line = hist->line;
+        printf("%s\n", guess_line);
     }
-    exit(0);
+
 }
 
 void sh_loop(void)
@@ -334,7 +343,7 @@ void sh_loop(void)
         line = readline(">");
         args = sh_split_line(line);
         for(i = 0; args[i] != NULL; i++);
-        argc = i + 1;
+        argc = i;
         add_history(line);
         for(i = 0; args[i] != NULL; i++) {
             if(strcmp(args[i], ">") == 0 && args[i+1] != NULL){
@@ -501,7 +510,8 @@ int sh_execute(char **args, int argc)
     int i;
     char ***cmd;
     int cmdn;
-    if(argc != 1){
+    if(argc > 2){
+        // printf("%d\n", argc);
         cmd = split_multiple(argc, args, &cmdn);
         return fork_pipes(cmdn, cmd);
     }
@@ -516,6 +526,7 @@ int sh_execute(char **args, int argc)
             return (*builtin_func[i])(args);
         }
     }
+
 
     return sh_launch(args);
 }
