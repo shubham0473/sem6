@@ -13,20 +13,21 @@ Roll: 13CS30030, 13CS30011
 #include <sys/msg.h>
 #include <sys/ipc.h>
 #include <mqueue.h>
+#include <signal.h>
 
 
 
 #define MESSAGE_SIZE 3000
+typedef struct msgbuf {
+    long mtype;
+    char mtext[MESSAGE_SIZE+1];
+} Message;
 
 #define SH_RL_BUFSIZE 1024
 #define SH_TOK_BUFSIZE 64
 #define MAX_HISTORY_SIZE 20
 #define SH_TOK_DELIM " \t\r\n\a"
 
-typedef struct msgbuf {
-    long mtype;
-    char mtext[MESSAGE_SIZE+1];
-} Message;
 
 int sh_cd(char **args);
 int sh_couple();
@@ -34,8 +35,9 @@ int sh_uncouple();
 int sh_history(char **args);
 
 int couple_flag = 0;
-int msg_type = -1;     //apparently the client ID will be the msg_type
+int client_id = -1;
 int msgqid;
+int save_out = -1;
 key_t MESSAGEQ_KEY = 131;
 
 void init_msqid(){
@@ -46,17 +48,13 @@ void init_msqid(){
 }
 
 char *builtin_str[] = {
-    "couple",
     "history",
-    "cd",
-    "uncouple"
+    "cd"
 };
 
 int (*builtin_func[]) (char **) = {
-    &sh_couple,
     &sh_history,
-    &sh_cd,
-    &sh_uncouple
+    &sh_cd
 };
 
 
@@ -65,36 +63,63 @@ int sh_num_builtins() {
     return sizeof(builtin_str) / sizeof(char *);
 }
 
-int sh_couple(int in, int out, int *save_out){
+int sh_couple(){
+    int out_saved;
     Message reg_msg, response;
-    reg_msg.mtype = 101;
+    reg_msg.mtype = 1;
     strcpy(reg_msg.mtext, "Requesting client ID");
     if(msgsnd(msgqid, &reg_msg, strlen(reg_msg.mtext), 0) == -1){
         printf("error coupling\n");
     }
-    sleep(1);
-    if(msgrcv(msgqid, &response, 10, 100, 0) == -1){
+    if(msgrcv(msgqid, &response, 10, 3, 0) == -1){
         perror("msgrv failed\n");
     }
-    msg_type = atoi(response.mtext);
-    printf("%d\n", msg_type);
-    couple_flag = 1;
+    if(response.mtext != NULL && response.mtype == 3){
+        client_id = atoi(response.mtext);
+        printf("Client ID: %d\n", client_id);
+        couple_flag = 1;
+    }
 
-    save_out = dup(1);
-    dup2(out, 1);
     return 1;
 }
 
-int sh_uncouple(int *save_out){
+int redirect(char **args, char *line){
+    if(strcmp(args[0], "uncouple") == 0) return sh_uncouple();
+    int fd[2];
+    Message *cl_msg;
+    int msg_status;
+
+    char *output;
+    cl_msg = (Message*)malloc(sizeof(Message));
+    output = (char*)malloc((MESSAGE_SIZE+1)*sizeof(char));
+
+    if(pipe(fd) != 0 ) {          /* make a fd */
+        exit(1);
+    }
+    // output = (char*)malloc((MESSAGE_SIZE+1)*sizeof(char));
+    save_out = dup(1);
+    dup2(fd[1], 1);
+    int status = sh_execute(args);
+    read(fd[0], output, MESSAGE_SIZE);
+    dup2(save_out, 1);
+    sprintf(cl_msg->mtext, "Terminal %d : %s\n %s",  client_id, line, output);
+    cl_msg->mtype = 5;
+    if(msgsnd(msgqid, cl_msg, strlen(cl_msg->mtext), 0) == -1){
+        printf("Error redirect\n");
+    }
+    free(output);
+    return 1;
+}
+
+int sh_uncouple(){
     Message dereg_msg;
-    couple_flag = 0;
-    dereg_msg.mtype = msg_type;
-    strcpy(dereg_msg.mtext, "Requesting client deregistration");
-    if(msgsnd(msgqid, &dereg_msg, strlen(dereg_msg.mtext), 0) == -1){
+    dereg_msg.mtype = 2;
+    sprintf(dereg_msg.mtext, "%d", client_id);
+    if(msgsnd(msgqid, &dereg_msg, strlen(dereg_msg.mtext), IPC_NOWAIT) == -1){
         printf("error decoupling\n");
     }
-    msg_type = -1;
-    dup2(*save_out, 1);
+    client_id = -1;
+    couple_flag = 0;
     return 1;
 }
 
@@ -179,37 +204,24 @@ void sh_loop(void)
     char *line;
     char **args;
     int status;
-    init_msqid();
-    char *output;
-    int save_out;
-    int fd[2];
-    int msg_status;
-    Message cl_msg;
 
-    cl_msg.mtype = 0;
-
-    if(pipe(fd) != 0 ) {          /* make a fd */
-        exit(1);
-    }
-
-    output = (char*)malloc((MESSAGE_SIZE+1)*sizeof(char));
 
     using_history();
     stifle_history(MAX_HISTORY_SIZE);
     char cwd[1024];
     do {
+        fflush(stdout);
         getcwd(cwd, sizeof(cwd));
         printf("%s", cwd);
         line = readline(">");
         args = sh_split_line(line);
         add_history(line);
-        status = sh_execute(args, fd[0], fd[1], save_out);
+        if(couple_flag == 0){
+            status = sh_execute(args);
+        }
+        else{
+            status = redirect(args, line);
 
-        if(couple_flag == 1){
-            read(fd[0], cl_msg.mtext, MESSAGE_SIZE);
-            cl_msg.mtype = msg_type;
-            msg_status = msgsnd(msgqid, &cl_msg, strlen(cl_msg.mtext), 0);
-            printf("%s\n", cl_msg.mtext);
         }
         // fprintf(stderr, "%s\n", );
         free(line);
@@ -252,7 +264,7 @@ int sh_launch(char **args)
     return 1;
 }
 
-int sh_execute(char **args, int in, int out, int *save_out)
+int sh_execute(char **args)
 {
     int i;
 
@@ -261,8 +273,8 @@ int sh_execute(char **args, int in, int out, int *save_out)
         return 1;
     }
 
-    if(strcmp(args[0], "couple") == 0) return sh_couple(in, out, save_out);
-    if(strcmp(args[0], "uncouple") == 0) return sh_uncouple(save_out);
+    if(strcmp(args[0], "couple") == 0) return sh_couple();
+    if(strcmp(args[0], "uncouple") == 0) return sh_uncouple();
 
     for (i = 0; i < sh_num_builtins(); i++) {
         if (strcmp(args[0], builtin_str[i]) == 0) {
@@ -275,12 +287,13 @@ int sh_execute(char **args, int in, int out, int *save_out)
 
 void sh_receive(){
     Message response;
-    if(msgrcv(msgqid, &response, 10, 100, 0) == -1){
-        perror("msgrv failed\n");
-    }
-    if(response.mtext != NULL){
-        printf("Terminal %d:", msg_type);
-        printf("%s\n", response.mtext);
+    while(1){
+        if(msgrcv(msgqid, &response, MESSAGE_SIZE, 6, 0) == -1){
+            perror("msgrv failed\n");
+        }
+        if(response.mtext != NULL && response.mtype == 6){
+            printf("%s\n", response.mtext);
+        }
     }
 }
 
@@ -290,15 +303,33 @@ void sh_receive(){
 @param line The line.
 @return Null-terminated array of tokens.
 */
+void uncouple_exit(int sig){
+    if(sig == SIGINT){
+        Message dereg_msg;
+        couple_flag = 0;
+        dereg_msg.mtype = 2;
+        sprintf(dereg_msg.mtext, "%d", client_id);
+        if(msgsnd(msgqid, &dereg_msg, strlen(dereg_msg.mtext), 0) == -1){
+            printf("error decoupling\n");
+        }
+        client_id = -1;
+    }
+}
 
 
 int main(int argc, char* argv[]){
     int parent_pid;
+    signal(SIGINT, uncouple_exit);
+    init_msqid();
+
     if((parent_pid = fork())==0){
-        sh_receive();
+        sh_loop();
+
+
     }
     else{
-        sh_loop();
+        sh_receive();
+
     }
     // Perform any shutdown/cleanup.
     return EXIT_SUCCESS;
