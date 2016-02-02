@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <crypt.h>
 
 #include <sys/socket.h> // For the socket () etc. functions.
 #include <netinet/in.h> // For IPv4 data struct..
@@ -19,6 +20,7 @@ void main (int argc , char *argv[])
         printf("Enter IP of the server\n");
         exit(0);
     }
+    char buf[BUF_SIZE];
 
     /***************** Create a socket *******************************/
     sfd = socket (AF_INET, SOCK_DGRAM, 0); /* AF_INET --> IPv4,
@@ -34,9 +36,9 @@ void main (int argc , char *argv[])
 
     /****************** Send - receive messages **********************/
 
-    printf("Enter date before which you wish to delete articles (yyyymmdd):");
-    char msg[10];
-    scanf("%s", msg);
+    //printf("%s\n", hash);
+
+
 
     char msg_len = 10;
     /* int  flags   = 0 | MSG_DONTWAIT; /* Client doesn't wait even if
@@ -70,11 +72,24 @@ void main (int argc , char *argv[])
     }
 
 
+    char* password = getpass("Enter password:");
+    char* hash = crypt(password, "DS");
+
+    if(strcmp(hash, "DS1lxBt1j0ltM") == 0){
+        printf("LOGIN SUCCESSFUL\n");
+    }
+    else exit(0);
+
+    printf("Enter date before which you wish to delete articles (yyyymmdd):");
+    char msg[10];
+    scanf("%s", msg);
+
     /* Sending message to the server. */
     rst = sendto (sfd, msg, 20, flags, (struct sockaddr *) &dest_addr,
     sizeof (struct sockaddr_in)); /* Value of rst is 20,
     * on successful transmission; i.e. It has nothing to do with a
     * NULL terminated string.
+
     */
     if (rst < 0)
     {
@@ -86,6 +101,22 @@ void main (int argc , char *argv[])
         printf ("Sent data size = %d\n", rst);
     }
 
+    rst = recvfrom(sfd, buf, BUF_SIZE, flags, (struct sockaddr *)&dest_addr, &addrlen);
+    if (rst == -1)
+    {
+        perror ("Server: recvfrom failed");
+        exit (1);
+    }
+
+    if (rst < 0)
+    {
+        perror ("Client: recvfrom function call failed");
+        exit (1);
+    }
+    else
+    {
+        printf ("%s\n", buf);
+    }
     /*
     char buf[BUF_SIZE] = {'\0'};
     struct sockaddr_in sender_addr;

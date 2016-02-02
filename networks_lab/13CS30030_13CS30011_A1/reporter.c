@@ -10,7 +10,7 @@
 
 #define ACADEMIC 1
 #define NON_ACADEMIC 2
-#define SOCKET_NO 23485
+#define SOCKET_NO 23482
 #define BUF_SIZE 1000
 
 

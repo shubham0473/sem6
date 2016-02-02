@@ -8,7 +8,7 @@
 #include <string.h> // For memset.
 #include <arpa/inet.h> // For inet_pton (), inet_ntop ().
 
-int port_num = 23485;
+int port_num = 23482;
 #define BUF_SIZE 1000
 
 

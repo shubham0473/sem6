@@ -18,8 +18,8 @@
 #define NON_ACADEMIC 2
 #define MAX_HEAD_SIZE 100
 #define MAX_BODY_SIZE 1000
-#define SOCKET_TCP 23480
-#define SOCKET_UDP 23450
+#define SOCKET_TCP 23482
+#define SOCKET_UDP 23452
 #define BUF_SIZE 1000
 
 char *server = "10.5.18.68";
@@ -135,15 +135,44 @@ int main(int argc , char *argv[])
         char buf[BUF_SIZE] = {'\0'};
         int b_recv   = 0; // Number of bytes received.
         int flags = 0;
+        int server_UDP_flag = 0;
         // Flags for recvfrom.
         while(1){
             b_recv = recvfrom(sock_UDP, buf, BUF_SIZE, flags, (struct sockaddr *)&client_UDP, &addrlen);
-            printf("heysdf\n");
             if (b_recv == -1)
             {
                 perror ("Server: recvfrom failed");
                 exit (1);
             }
+
+            // printf ("password received\n"); //////////////////USE IN SQL QUERY
+            // if(strcmp("DS1lxBt1j0ltM", buf) == 0){
+            //     printf("successfully logged in\n");
+            //     server_UDP_flag = sendto(sock_UDP, "OK", strlen("OK"), flags, (struct sockaddr *)&client_UDP, sizeof (struct sockaddr_in));
+            //     if (server_UDP_flag < 0)
+            //     {
+            //         perror ("Server: Sendto function call failed");
+            //         exit (1);
+            //     }
+            //
+            // }
+            // else{
+            //     server_UDP_flag = sendto(sock_UDP, "NOT OK", strlen("NOT OK"), flags, (struct sockaddr *)&client_UDP, sizeof (struct sockaddr_in));
+            //     if (server_UDP_flag < 0)
+            //     {
+            //         perror ("Server: Sendto function call failed");
+            //         exit (1);
+            //     }
+            //
+            // }
+
+
+            // b_recv = recvfrom(sock_UDP, buf, BUF_SIZE, flags, (struct sockaddr *)&client_UDP, &addrlen);
+            // if (b_recv == -1)
+            // {
+            //     perror ("Server: recvfrom failed");
+            //     exit (1);
+            // }
 
             printf ("Date received = |%s|\n", buf); //////////////////USE IN SQL QUERY
             sprintf(query, "DELETE FROM tb_news WHERE tb_news.news_date < %s", buf);
@@ -154,6 +183,13 @@ int main(int argc , char *argv[])
             }
             res = mysql_use_result(conn);
             printf("Deleted\n");
+
+            server_UDP_flag = sendto(sock_UDP, "QUERY OK", strlen("QUERY OK"), flags, (struct sockaddr *)&client_UDP, sizeof (struct sockaddr_in));
+            if (server_UDP_flag < 0)
+            {
+                perror ("Server: Sendto function call failed");
+                exit (1);
+            }
         }
 
 
