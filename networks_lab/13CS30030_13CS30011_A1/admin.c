@@ -9,7 +9,7 @@
 #include <string.h> // For memset.
 #include <arpa/inet.h> // For inet_pton ().
 
-int port_num = 23452;
+int port_num = 23453;
 #define BUF_SIZE 30
 
 void main (int argc , char *argv[])

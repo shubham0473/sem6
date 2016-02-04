@@ -8,7 +8,7 @@
 #include <string.h> // For memset.
 #include <arpa/inet.h> // For inet_pton (), inet_ntop ().
 
-int port_num = 23482;
+int port_num = 23483;
 #define BUF_SIZE 1000
 
 
@@ -88,7 +88,7 @@ void main (int argc , char *argv[])
         exit (1);
     }
 
-    if(!strcmp(buf, "ok"))
+    if(strcmp(buf, "ok") == 0)
     {
         int option;
         printf("Select newsgroup (1. Academic 2.Non-academic):");

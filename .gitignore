@@ -31,5 +31,8 @@
 # Debug files
 *.dSYM/
 
+#PDF files
+*.pdf
+
 .*
 !/.gitignore

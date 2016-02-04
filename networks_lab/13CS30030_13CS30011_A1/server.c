@@ -18,8 +18,8 @@
 #define NON_ACADEMIC 2
 #define MAX_HEAD_SIZE 100
 #define MAX_BODY_SIZE 1000
-#define SOCKET_TCP 23482
-#define SOCKET_UDP 23452
+#define SOCKET_TCP 23483
+#define SOCKET_UDP 23453
 #define BUF_SIZE 1000
 
 char *server = "10.5.18.68";
@@ -235,7 +235,8 @@ int main(int argc , char *argv[])
                     user, password, database, 0, NULL, 0)) {
                         fprintf(stderr, "%s\n", mysql_error(conn));
                         return 0;
-                    }                read_size = recv(sock_TCP_client, client_message, 2000, 0);
+                    }
+                read_size = recv(sock_TCP_client, client_message, 2000, 0);
                 printf("%s\n", client_message);
                 if(client_message){
                     if(strcmp(client_message, "reporter") == 0) {

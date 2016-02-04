@@ -1,6 +1,6 @@
-newsID 17 : Networks lab demo
+newsID 23 : Networks lab demo going on
 
 
-testing the assignment
+demo going on
 
-2015-02-02
+2014-02-03
