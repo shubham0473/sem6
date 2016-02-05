@@ -78,7 +78,8 @@ void main (int argc, char* argv[])
 	while (fgets(line, 1024, request_stream))
 	{
 		sleep(5);
-		printf("Sending: %s\n", line);
+		line[strlen(line) - 1] = '\0';
+		printf("\nSending: %s\n", line);
 		write(sfd, line, strlen(line));
 		// recv(sfd, buf, 1000, 0);
 		// if(strcmp(buf, "ok") != 0) {
@@ -86,7 +87,9 @@ void main (int argc, char* argv[])
 		// 	printf("Could not book: %s\n", line);
 		// 	continue;
 		// }
-		recv(sfd, buf, 1000, 0);
+
+		int len = recv(sfd, buf, 1000, 0);
+		buf[len] = '\0';
 		fprintf(response_stream, "%s\n", buf);
 		printf("Response: %s\n", buf);
 

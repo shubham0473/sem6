@@ -123,7 +123,7 @@ int main(int argc , char *argv[])
 		while(TRUE) {
 			scanf("%d", &opt);
 			if(opt == 1){
-				strcpy(query, "select train_name, coach_type, count(flag=1) as available, count(*) as total from tb_seat group by coach_type, train_name;");
+				strcpy(query, "select train_name, coach_type, sum(flag) as available, count(*) as total from tb_seat group by coach_type, train_name;");
 				if (mysql_query(conn, query)) { // 0 on success
 					fprintf(stderr, "%s\n", mysql_error(conn));
 					exit(1);
@@ -131,7 +131,11 @@ int main(int argc , char *argv[])
 				res = mysql_use_result(conn);
 				printf("Train Name \t coach_type \t available \t total\n");
 				while ((row = mysql_fetch_row(res)) != NULL){
-					printf("%s \t %s \t\t %s \t\t %s\n", row[0], row[1], row[2], row[3]);
+					int total = atoi(row[3]);
+					int flag_sum = atoi(row[2]);
+					int booked = flag_sum - total;
+					int available = total - booked;
+					printf("%s \t %s \t\t %d \t\t %d\n", row[0], row[1], available, total);
 				}
 				mysql_free_result(res);
 				printf("Press 1 to display the current booking status.\n");
@@ -216,7 +220,7 @@ int main(int argc , char *argv[])
 					}
 					//Else a client requested for booking
 					else {
-						printf("Booking request: %s\n", buffer);
+						printf("\nBooking request: %s\n", buffer);
 						get_field(buffer, ",");
 
 						int passID = atoi(field[PNUM]);
@@ -224,14 +228,14 @@ int main(int argc , char *argv[])
 						int berth = atoi(field[QTY]);
 						char* coach_type = field[AC];
 
-						printf("passID = %d, train_no = %d, berth = %d, coach_type = %s\n", passID, train_no, berth, coach_type);
+						// printf("passID = %d, train_no = %d, berth = %d, coach_type = %s\n", passID, train_no, berth, coach_type);
 
 						char* pref_list = strdup(field[PREF]);
 						get_field(pref_list, "-");
 						char* pref[berth];
 						for(int i = 0; i < berth; i++) {
 							pref[i] = strdup(field[i]);
-							printf("pref %d = %s\n", i, pref[i]);
+							//printf("pref %d = %s\n", i, pref[i]);
 						}
 
 						int booked = 0;
@@ -251,10 +255,10 @@ int main(int argc , char *argv[])
 							return 0;
 						}
 
-						printf("Connecting to database...\n");
+						// printf("Connecting to database...\n");
 
 						// Query total availability in train
-						sprintf(query, "SELECT coach_type, count(flag=1) as available, count(*) as total FROM tb_seat WHERE train_no = %d and coach_type = '%s'", train_no, coach_type);
+						sprintf(query, "SELECT coach_type, count(*) as available FROM tb_seat WHERE flag = 1 and train_no = %d and coach_type = '%s'", train_no, coach_type);
 						if (mysql_query(conn, query)) {
 							fprintf(stderr, "%s\n", mysql_error(conn));
 							exit(1);
@@ -265,58 +269,72 @@ int main(int argc , char *argv[])
 						// If train has enough berths, check if a coach has enough berths
 						if(atoi(row[1]) >= berth){
 
-							printf("%d seats available in train %d\n", berth, train_no);
+							printf("%s seats available in train %d\n", row[1], train_no);
 							mysql_free_result(res);
 
 							// Query availability in coaches
-							sprintf(query, "SELECT coach_no, count(flag=1) as available, count(*) as total FROM tb_seat WHERE train_no = %d and coach_type = '%s' group by coach_no", train_no, coach_type);
+							sprintf(query, "SELECT coach_no, count(*) as available FROM tb_seat WHERE flag = 1 and train_no = %d and coach_type = '%s' group by coach_no", train_no, coach_type);
 							if (mysql_query(conn, query)) {
 								fprintf(stderr, "%s\n", mysql_error(conn));
 								exit(1);
 							}
 							res = mysql_store_result(conn);
 
-							// Check if any coach has enugh berths
+							// Check if any coach has enough berths
 							while((row = mysql_fetch_row(res)) != NULL){
 								if(atoi(row[1]) >= berth) {
-
+									printf("%s seats available in coach %s\n", row[1], row[0]);
 									// Try to book as per prefernce
 									for(booked = 0; booked < berth;){
 										int seat_booked = 0;
 
-										sprintf(query2, "UPDATE tb_seat SET flag = 2 WHERE flag = 1 and seat_type = '%s' and coach_no = '%s' and train_no = %d LIMIT 1", pref[booked], row[0], train_no);
+										sprintf(query2, "UPDATE tb_seat SET flag = 3 WHERE flag = 1 and seat_type = '%s' and coach_no = '%s' and train_no = %d LIMIT 1", pref[booked], row[0], train_no);
+										// printf("\nAttempting: %s\n", query2);
 										if (mysql_query(conn, query2)) {
 											fprintf(stderr, "%s\n", mysql_error(conn));
 											exit(1);
 										}
 										if((int) mysql_affected_rows(conn) != 0){
 											seat_booked = 1;
-											mysql_query(conn,"SELECT coach_no, seat_no, seat_type FROM tb_seat ORDER BY lastmodified DESC LIMIT 1;");
+											// printf("Seat Booked\n");
+											mysql_query(conn,"SELECT coach_no, seat_no, seat_type FROM tb_seat WHERE flag = 3");
+											// printf("Queried");
 											MYSQL_RES *res1 = mysql_store_result(conn);
+											// printf("Stored");
 											MYSQL_ROW row1 = mysql_fetch_row(res1);
-											sprintf(response[booked], "%s/%s/%s", row1[0], row1[1], row[2]);
+											// printf("Fetched");
+											sprintf(response[booked], "%s/%s/%s", row1[0], row1[1], row1[2]);
+											// printf("AA. Passenger %d: %s\n", booked, response[booked]);
 											mysql_free_result(res1);
+											mysql_query(conn, "UPDATE tb_seat SET flag = 2 WHERE flag = 3");
 											booked++;
-											break;
+											continue;
 										}
 
 										// If prefered seat not available,
 										// book any available seat in coach
 										if(seat_booked == 0){
-											sprintf(query2, "UPDATE tb_seat SET flag = 2 WHERE flag = 1 and coach_no = '%s' and train_no = %d LIMIT 1", row[0], train_no);
+											sprintf(query2, "UPDATE tb_seat SET flag = 3 WHERE flag = 1 and coach_no = '%s' and train_no = %d LIMIT 1", row[0], train_no);
+											// printf("\nAttempting: %s\n", query2);
 											if (mysql_query(conn, query2)) {
 												fprintf(stderr, "%s\n", mysql_error(conn));
 												exit(1);
 											}
 											if((int) mysql_affected_rows(conn) != 0){
 												seat_booked = 1;
-												mysql_query(conn,"SELECT coach_no, seat_no, seat_type FROM tb_seat ORDER BY lastmodified DESC LIMIT 1;");
+												// printf("Seat Booked\n");
+												mysql_query(conn,"SELECT coach_no, seat_no, seat_type FROM tb_seat WHERE flag = 3");
+												// printf("Queried");
 												MYSQL_RES *res1 = mysql_store_result(conn);
+												// printf("Stored");
 												MYSQL_ROW row1 = mysql_fetch_row(res1);
-												sprintf(response[booked], "%s/%s/%s", row1[0], row1[1], row[2]);
+												// printf("Fetched");
+												sprintf(response[booked], "%s/%s/%s", row1[0], row1[1], row1[2]);
+												// printf("AB. Passenger %d: %s\n", booked, response[booked]);
 												mysql_free_result(res1);
+												mysql_query(conn, "UPDATE tb_seat SET flag = 2 WHERE flag = 3");
 												booked++;
-												break;
+												continue;
 											}
 										}
 									} // All seats booked
@@ -328,31 +346,64 @@ int main(int argc , char *argv[])
 
 							// No coach has enough seats, staggered alotment
 							while(booked < berth){
-								sprintf(query, "UPDATE tb_seat SET flag = 2 WHERE flag = 1 and train_no = %d LIMIT 1", train_no);
-								if (mysql_query(conn, query)) {
+								int seat_booked = 0;
+
+								// Try to give prefered seat
+								sprintf(query2, "UPDATE tb_seat SET flag = 3 WHERE flag = 1 and seat_type = '%s'and train_no = %d LIMIT 1", pref[booked], train_no);
+								// printf("\nAttempting: %s\n", query2);
+								if (mysql_query(conn, query2)) {
 									fprintf(stderr, "%s\n", mysql_error(conn));
 									exit(1);
 								}
 								if((int) mysql_affected_rows(conn) != 0){
-									mysql_query(conn,"SELECT coach_no, seat_no, seat_type FROM tb_seat ORDER BY lastmodified DESC LIMIT 1;");
+									seat_booked = 1;
+									mysql_query(conn,"SELECT coach_no, seat_no, seat_type FROM tb_seat WHERE flag = 3");
 									MYSQL_RES *res1 = mysql_store_result(conn);
 									MYSQL_ROW row1 = mysql_fetch_row(res1);
-									sprintf(response[booked], "%s/%s/%s", row1[0], row1[1], row[2]);
+									sprintf(response[booked], "%s/%s/%s", row1[0], row1[1], row1[2]);
+									// printf("BA. Passenger %d: %s\n", booked, response[booked]);
 									mysql_free_result(res1);
+									mysql_query(conn, "UPDATE tb_seat SET flag = 2 WHERE flag = 3");
 									booked++;
-									break;
+									continue;
+								}
+
+								// If prefered seat not available,
+								// book any available seat in coach
+								if(seat_booked == 0){
+									sprintf(query2, "UPDATE tb_seat SET flag = 3 WHERE flag = 1 and train_no = %d LIMIT 1", train_no);
+									// printf("\nAttempting: %s\n", query2);
+									if (mysql_query(conn, query2)) {
+										fprintf(stderr, "%s\n", mysql_error(conn));
+										exit(1);
+									}
+									if((int) mysql_affected_rows(conn) != 0){
+										seat_booked = 1;
+										mysql_query(conn,"SELECT coach_no, seat_no, seat_type FROM tb_seat WHERE flag = 3");
+										MYSQL_RES *res1 = mysql_store_result(conn);
+										MYSQL_ROW row1 = mysql_fetch_row(res1);
+										sprintf(response[booked], "%s/%s/%s", row1[0], row1[1], row1[2]);
+										// printf("BB. Passenger %d: %s\n", booked, response[booked]);
+										mysql_free_result(res1);
+										mysql_query(conn, "UPDATE tb_seat SET flag = 2 WHERE flag = 3");
+										booked++;
+										continue;
+									}
 								}
 							}
 
 							for(int i = 0; i < berth; i++) {
 								if(i != 0) strcat(server_response, "-");
 								strcat(server_response, response[i]);
+								// printf("server_response = %s", server_response);
 							}
 						}
 						else { //Not enough seats in train
+								mysql_free_result(res);
 								strcat(server_response, "NA");
 						}
 
+						printf("Server response: %s\n", server_response);
 						write(sd, server_response, strlen(server_response));
 					}
 				}
