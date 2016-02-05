@@ -203,9 +203,76 @@ int main(int argc , char *argv[])
                     //Echo back the message that came in
                     else
                     {
-                        //do the sql operations
-                        buffer[valread] = '\0';
-                        send(sd , buffer , strlen(buffer) , 0 );
+                        int passID, train, berth=10, age, booked = 0, i = 0 j=1;
+                        char pref[2];
+                        MYSQL *conn;
+                        MYSQL_RES *res, res1;
+                        MYSQL_ROW row, row1;
+                        conn = mysql_init(NULL);
+                        char query[1000], query2[1000];
+                        int opt = 0;
+                        if (!mysql_real_connect(conn, server, user, password, database, 0, NULL, 0)) {
+                            fprintf(stderr, "%s\n", mysql_error(conn));
+                            return 0;
+                        }
+                        sprintf(query, "SELECT coach_type, count(flag=1) as available, count(*) as total FROM tb_seat WHERE train_no = 12321 and coach_type = 'Sleeper'");
+                        res = mysql_use_result(conn);
+                        if ((row = mysql_fetch_row(res)) != NULL){
+                            if(atoi(row[1]) >= berth){
+                                //normal allocation
+                                sprintf(query, "SELECT coach_no, count(flag=1) as available, count(*) as total FROM tb_seat WHERE train_no = 12321 and coach_type = 'Sleeper' group by coach_no");
+                                res = mysql_use_result(conn);
+                                while((row = mysql_fetch_row(res)) != NULL){
+                                    if(atoi(row[1]) >= berth){
+                                        //update passenger info at this point
+                                        for(i = 0; i < berth; i++){
+                                            booked = 0;
+                                            for(j = 0; j < 72; j++){
+                                                if(booked = 0){
+                                                    //allocate in the same coach according to pref
+                                                    sprintf(query2, "UPDATE tb_seat SET flag = 2, age = %d WHERE flag = 1 and seat_type = '%s' and coach_no = '%s' and train_no = %s and seat_no = %d", age, pref, row[0], train, j);
+                                                    res2 = mysql_use_result(conn);
+                                                    if((int)mysql_fetch_row(res2) != 0){
+                                                        booked = 1;
+                                                        break;
+                                                    }
+                                                }
+
+                                            }
+                                            if(booked == 0){
+                                                sprintf(query2, "UPDATE tb_seat SET flag = 2, age = %d WHERE flag = 1 and coach_no = '%s' and train_no = %s and seat_no = %d", age, row[0], train, j);
+                                                res2 = mysql_use_result(conn);
+                                                if((int)mysql_fetch_row(res2) != 0){
+                                                    booked = 1;
+                                                    break;
+                                                }
+                                                //violate pref and allocate
+                                            }
+
+                                        }
+
+                                        booked = 1;
+                                        break;
+                                    }
+                                }
+
+
+
+                            }
+                            if(booked == 0){
+                                if(){
+                                    //allocate randomly with pref if possbile
+                                }
+                                else{
+                                    //random
+                                }
+                            }
+
+                            else{
+                                //send failure report
+                            }
+                        }
+
                     }
                 }
             }
