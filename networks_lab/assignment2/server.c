@@ -8,10 +8,19 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/time.h> //FD_SET, FD_ISSET, FD_ZERO macros
+#include <mysql.h>
+
+char *server = "10.5.18.68";
+char *user = "13CS30030";
+char *password = "cse12";
+char *database = "13CS30030";
+char *table = "tb_seat";
 
 #define TRUE   1
 #define FALSE  0
 #define PORT 8888
+
+
 
 int main(int argc , char *argv[])
 {
@@ -75,11 +84,39 @@ int main(int argc , char *argv[])
     int parent_pid;
 
     if((parent_pid = fork()) == 0){
+        MYSQL *conn;
+        MYSQL_RES *res;
+        MYSQL_ROW row;
+        conn = mysql_init(NULL);
+        char query[1000];
+        int opt = 0;
+        if (!mysql_real_connect(conn, server,
+            user, password, database, 0, NULL, 0)) {
+                fprintf(stderr, "%s\n", mysql_error(conn));
+                return 0;
+            }
         printf("Press 1 to display the current booking status\n");
+        while(1){
+            scanf("%d", &opt);
+            if(opt == 1){
+                strcpy(query, "select train_name, coach_type, count(flag=1) as available, count(*) as total from tb_seat group by coach_type, train_name;");
+                if (mysql_query(conn, query)) {
+                    fprintf(stderr, "%s\n", mysql_error(conn));
+                    exit(1);
+                }
+                res = mysql_use_result(conn);
+                printf("Train Name \t coach_type \t available \t total\n");
+                while ((row = mysql_fetch_row(res)) != NULL){
+                    printf("%s \t %s \t\t %s \t\t %s\n", row[0], row[1], row[2], row[3]);
+                }
+            }
+        }
+
     }
     else{
         while(TRUE)
         {
+
             //clear the socket set
             FD_ZERO(&readfds);
 
@@ -152,7 +189,7 @@ int main(int argc , char *argv[])
                 if (FD_ISSET( sd , &readfds))
                 {
                     //Check if it was for closing , and also read the incoming message
-                    if ((valread = recv(sd , buffer, 1024)) == 0)
+                    if ((valread = recv(sd , buffer, 1024, 0)) == 0)
                     {
                         //Somebody disconnected , get his details and print
                         getpeername(sd , (struct sockaddr*)&address , (socklen_t*)&addrlen);
