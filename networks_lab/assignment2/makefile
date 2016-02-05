@@ -1,5 +1,5 @@
 all: server.c
-	gcc server.c -o server -std=c99 `mysql_config --cflags --libs` -g
+	gcc server.c -o server -std=gnu99 `mysql_config --cflags --libs` -g
 	gcc client.c -o client -g
 
 
