@@ -13,8 +13,8 @@
 void main (int argc, char* argv[])
 {
 	int port_num = atoi(argv[2]);
-	if(argc < 2) {
-		printf("Enter IP of the server\n");
+	if(argc < 3) {
+		printf("Usage: %s, <server ip> <server port> <booking csv>\n", argv[0]);
 		exit(0);
 	}
 
@@ -72,8 +72,10 @@ void main (int argc, char* argv[])
 	recv(sfd, buf, 1000, 0);
 	printf("Server: %s\n", buf);
 
-	FILE* request_stream = fopen("Booking.csv", "r");
-	FILE* response_stream = fopen("Responses.csv", "w");
+	FILE* request_stream = fopen(argv[3], "r");
+	char output_file[50];
+	sprintf(output_file, "%s_output.csv", argv[3]);
+	FILE* response_stream = fopen(output_file, "w");
 	char line[1024];
 	while (fgets(line, 1024, request_stream))
 	{
