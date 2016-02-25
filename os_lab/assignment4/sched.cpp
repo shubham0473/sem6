@@ -80,15 +80,20 @@ int main(int argc, char* argv[]){
             q.push(new_proc);         //change this
         }
 
+		
         next = round_robin();
-
+		// send notify signal to next process
         for(int i = 0; i < 1000; i++){
-            //signal for I/O
-            //signal for temination
-            //check message queue for new process and preempt if required
-        }
 
-        //check the message queue for the processes which have completed their I/O
+            //check signal for I/O
+            //check signal for temination
+            //check message queue for ready processes and preempt if a higher priority exists
+			//if any of them true, break out of loop
+		}
+
+		//send suspend signal if preempt
+
+
 
     }
     else if(strcmp(argv[1], "PR") == 0){
