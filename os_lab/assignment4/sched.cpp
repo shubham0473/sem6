@@ -13,22 +13,28 @@
 #define MESSAGEQ_KEY 131
 #define MESSAGE_SIZE 1000
 #define MSG_ADD_ENTRY 1
+#define COMPLETED_IO 2
 
+#define WAITING 100
+#define TERMINATED 101
+#define READY 102
+#define RUNNING 103
 
 using namespace std;
 
 struct proc {
-  int pid;
-  int prio;
+    int pid;
+    int prio;
+    int state;
 };
 
 bool operator<(const proc& p1, const proc& p2) {
-  return p1.prio > p2.prio;
+    return p1.prio > p2.prio;
 }
 
 struct message {
-  long mtype;
-  char mtext[MESSAGE_SIZE+1];
+    long mtype;
+    char mtext[MESSAGE_SIZE+1];
 };
 
 
@@ -38,37 +44,67 @@ int msgqid;
 
 
 void init_msqid(){
-  if ((msgqid = msgget(MESSAGEQ_KEY, IPC_CREAT | 0666)) < 0) {
-    perror("msgget");
-    exit(1);
-  }
+    if ((msgqid = msgget(MESSAGEQ_KEY, IPC_CREAT | 0666)) < 0) {
+        perror("msgget");
+        exit(1);
+    }
+}
+
+proc * round_robin(){
+
+}
+
+proc * prio_round_robin(){
+
 }
 
 int main(int argc, char* argv[]){
 
-  if(argc < 2){
-    cout << "Please provide the scheduling algorithm to use!\n";
-    exit(0);
-  }
+    proc new_proc;
+    proc *next;
 
-
-
-  if(strcmp(argv[1], "RR") == 0) {
-    if(msgrcv(msgqid, &response, MESSAGE_SIZE, MSG_ADD_ENTRY, 0) == -1){
-      perror("msgrv failed\n");
-    }
-    if(response.mtext != NULL && response.mtype == MSG_ADD_ENTRY){
-      cout << response.mtext << endl;
-      proc = 
+    if(argc < 2){
+        cout << "Please provide the scheduling algorithm to use!\n";
+        exit(0);
     }
 
-  }
-  else if(strcmp(argv[1], "PR") == 0){
+    if(strcmp(argv[1], "RR") == 0) {
+        if(msgrcv(msgqid, &response, MESSAGE_SIZE, MSG_ADD_ENTRY, 0) == -1){
+            perror("msgrv failed\n");
+        }
+        if(response.mtext != NULL && response.mtype == MSG_ADD_ENTRY){
+            cout << response.mtext << endl;
+            new_proc.pid = atoi(response.mtext);
+            new_proc.prio = atoi(response.mtext);
+            new_proc.state = READY;
+            q.push(new_proc);         //change this
+        }
 
-  }
-  else{
-    cout << "Given scheduling algorithm doesn't match";
-    exit();
-  }
-  return 0;
+        next = round_robin();
+
+        for(int i = 0; i < 1000; i++){
+            //signal for I/O
+            //signal for temination
+            //check message queue for new process and preempt if required
+        }
+
+        //check the message queue for the processes which have completed their I/O
+
+    }
+    else if(strcmp(argv[1], "PR") == 0){
+        if(msgrcv(msgqid, &response, MESSAGE_SIZE, MSG_ADD_ENTRY, 0) == -1){
+            perror("msgrv failed\n");
+        }
+        if(response.mtext != NULL && response.mtype == MSG_ADD_ENTRY){
+            cout << response.mtext << endl;
+            new_proc.pid = atoi(response.mtext);
+            new_proc.prio = atoi(response.mtext);
+            prio_q.push(new_proc);         //change this
+        }
+    }
+    else{
+        cout << "Given scheduling algorithm doesn't match";
+        exit();
+    }
+    return 0;
 }
