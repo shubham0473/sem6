@@ -178,5 +178,6 @@ int main(int argc, char* argv[]){
 
     } while(!q.empty() | !prio_q_act.empty());
 
+    //read the result file, calculate average and append
     return 0;
 }
