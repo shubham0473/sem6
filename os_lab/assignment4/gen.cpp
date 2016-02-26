@@ -30,27 +30,34 @@ int main(int argc, char* argv[]) {
 		double sleepProb;
 
 		cout << "Process " << i << endl;
-		cout << "Enter number of iterations:";
+		cout << "Enter number of iterations:\n";
 		cin >> itr;
 		cout << "Enter priority:";
 		cin >> priority;
-		cout << "Enter sleep probability";
+		cout << "Enter sleep probability\n";
 		cin >> sleepProb;
-		cout << "Enter sleep time";
+		cout << "Enter sleep time\n";
 		cin >> sleepTime;
+
+
 
 		int child = fork();
 		if(child == 0) {
-			char* args[8];
+			printf("child started\n");
+			char* args[9];
 			args[0] = strdup("xterm");
-			args[1] = strdup("-e");
-			args[2] = strdup("./process");
-			sprintf(args[3], "%d", itr);
-			sprintf(args[4], "%d", priority);
-			sprintf(args[5], "%lf", sleepProb);
-			sprintf(args[6], "%d", sleepTime);
-			sprintf(args[7], "%d", schedID);
-			execv("xterm", args);
+			args[1] = strdup("-hold");
+			args[2] = strdup("-e");
+			args[3] = strdup("/home/shubham/Acads/sem6/os_lab/assignment4/./process");
+			asprintf(&args[4], "%d", itr);
+			asprintf(&args[5], "%d", priority);
+			asprintf(&args[6], "%lf", sleepProb);
+			asprintf(&args[7], "%d", sleepTime);
+			asprintf(&args[8], "%d", schedID);
+			// printf("%s, %s, %s, %s, %s, %s, %s, %s, %s\n", args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8]);
+			execl("/usr/bin/xterm", args[0], args[1], args[2], args[3], args[4],
+				args[5], args[6], args[7], args[8], NULL);
+			// printf("sfs\n");
 		}
 		sleep(t);
 	}
