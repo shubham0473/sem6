@@ -1,7 +1,7 @@
 all: gen process
 gen:
-	g++ gen.c -o gen
+	g++ gen.cpp -o gen
 process:
-	g++ process.c -o process
+	g++ process.cpp -o process
 sched:
-	g++ sched.c -o sched
+	g++ sched.cpp -o sched
