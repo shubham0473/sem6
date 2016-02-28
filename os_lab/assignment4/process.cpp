@@ -14,6 +14,8 @@
 
 using namespace std;
 
+#define DEBUG 0 // 1 if testing, 0 for results
+
 #define SIG_NOTIFY SIGUSR1
 #define SIG_SUSPEND SIGUSR2
 #define SIG_IO SIGUSR1
@@ -34,12 +36,12 @@ struct Message {
 key_t MESSAGEQ_KEY = 131;
 
 void notifyHandler(int signum) {
-    // cout << "NOTIFY received" << endl;
+    if(DEBUG) cout << "NOTIFY received" << endl;
     active = 1;
 }
 
 void suspendHandler(int signum) {
-    // cout << "SUSPEND received" << endl;
+    if(DEBUG) cout << "SUSPEND received" << endl;
     active = 0;
 }
 
@@ -67,22 +69,26 @@ int main(int argc, char* argv[]) {
         perror("Couldnt send message in queue\n");
     }
 
-    cout << "msgsend successful" << endl;
+    cout << "Pid and priority sent to sched" << endl;
     // Listen for SUSPEND and NOTIFY signals
     signal(SIG_NOTIFY, notifyHandler);
     signal(SIG_SUSPEND, suspendHandler);
 
     for(int i = 0; i < itr; i++) {
         sleep(1);
-        while(!active) {
+		while(!active) {
             pause();
         }
 
         cout << "PID:" << getpid() << ", Loop:" << i << endl;
 
         double diceRoll = double(rand())/RAND_MAX;
-        if(diceRoll > sleepProb) {
+        if(diceRoll < sleepProb) {
             // Signal IO to sched
+			if(DEBUG) cout << "Requesting IO" << endl;
+			// Stop listening to NOTIFY and SUSPEND during IO
+			// signal(SIG_NOTIFY, SIG_DFL);
+		    // signal(SIG_SUSPEND, SIG_DFL);
             kill(schedID, SIG_IO);
             active = 0;
 
@@ -93,6 +99,10 @@ int main(int argc, char* argv[]) {
             if(msgsnd(msgQID, &readyMsg, strlen(readyMsg.msgText), 0) == -1){
                 perror("Couldnt send message in queue\n");
             }
+			// Listen for SUSPEND and NOTIFY signals
+		    // signal(SIG_NOTIFY, notifyHandler);
+		    // signal(SIG_SUSPEND, suspendHandler);
+			if(DEBUG) cout << "IO complete sent to sched" << endl;
         }
     }
     //signal TERMINATED to sched

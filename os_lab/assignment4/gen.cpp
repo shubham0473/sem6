@@ -44,19 +44,21 @@ int main(int argc, char* argv[]) {
 		int child = fork();
 		if(child == 0) {
 			printf("child started\n");
-			char* args[9];
+			char* args[11];
 			args[0] = strdup("xterm");
 			args[1] = strdup("-hold");
-			args[2] = strdup("-e");
-			args[3] = strdup("/home/shubham/Acads/sem6/os_lab/assignment4/./process");
-			asprintf(&args[4], "%d", itr);
-			asprintf(&args[5], "%d", priority);
-			asprintf(&args[6], "%lf", sleepProb);
-			asprintf(&args[7], "%d", sleepTime);
-			asprintf(&args[8], "%d", schedID);
-			// printf("%s, %s, %s, %s, %s, %s, %s, %s, %s\n", args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8]);
+			args[2] = strdup("-title");
+			asprintf(&args[3], "P%d:,itr:%d,prio:%d,sprob:%lf,stime:%d", i, itr, priority, sleepProb, sleepTime);
+			args[4] = strdup("-e");
+			asprintf(&args[5], "%s/./process", getcwd(NULL, 0));
+			asprintf(&args[6], "%d", itr);
+			asprintf(&args[7], "%d", priority);
+			asprintf(&args[8], "%lf", sleepProb);
+			asprintf(&args[9], "%d", sleepTime);
+			asprintf(&args[10], "%d", schedID);
+			//printf("%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s\n", args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9], args[10]);
 			execl("/usr/bin/xterm", args[0], args[1], args[2], args[3], args[4],
-				args[5], args[6], args[7], args[8], NULL);
+				args[5], args[6], args[7], args[8], args[9], args[10], NULL);
 			// printf("sfs\n");
 		}
 		sleep(t);
