@@ -11,7 +11,7 @@
 #include <queue>
 
 #define MESSAGEQ_KEY 131
-#define MESSAGE_SIZE 1000
+#define MESSAGE_SIZE 100
 #define MSG_ADD_ENTRY 1
 #define COMPLETED_IO 2
 
@@ -47,7 +47,7 @@ struct message {
 
 
 std::priority_queue<proc> prio_q_act;
-std::priority_queue<proc> prio_q_exp;
+// std::priority_queue<proc> prio_q_exp;
 std::deque<proc> ready_q;
 int wait_q = 0;
 int total_proc = 0;
@@ -146,20 +146,6 @@ int main(int argc, char* argv[]){
 
 	time_quanta = atoi(argv[2]);
 
-	message response;
-	if(msgrcv(msgqid, &response, MESSAGE_SIZE, MSG_ADD_ENTRY, 0) == -1) { //blocking for the first process
-		perror("msgrv failed\n");
-	}
-	if(response.mtext != NULL && response.mtype == MSG_ADD_ENTRY){
-		proc new_proc;
-		sscanf(response.mtext, "%d %d", &new_proc.pid, &new_proc.prio);
-		printf("New process: %d, Priority: %d added\n", new_proc.pid, new_proc.prio);
-		total_proc++;
-		new_proc.state = READY;
-		if(algo_flag == ROUND_ROBIN) ready_q.push_back(new_proc);
-		else if(algo_flag == PRIORITY_RR) prio_q_act.push(new_proc);
-	}
-
 	//check signal for I/O
 	signal(SIG_IO, handle_IO);
 	//check signal for temination
@@ -169,11 +155,7 @@ int main(int argc, char* argv[]){
 	do {
 		IO_flag = 0;
 		terminated_flag = 0;
-		cout << "QUEUE: Total_proc = " << total_proc <<  endl;
-		for(int i = 0; i < ready_q.size(); i++) {
-			proc p = ready_q[i];
-			cout << "<pid>: " << p.pid << ", <prio>: " << p.prio << ", <state>: " << p.state << endl;
-		}
+
 		//check message queue for ready processes and preempt if a higher priority exists in PRR
 		message response;
 		int param  = (ready_q.empty() && prio_q_act.empty()) ? 0 : IPC_NOWAIT;
@@ -196,7 +178,14 @@ int main(int argc, char* argv[]){
 				}
 			}
 			param = (ready_q.empty() && prio_q_act.empty()) ? 0 : IPC_NOWAIT;
+			memset(response.mtext, 0, MESSAGE_SIZE);
 		}
+		cout << "QUEUE: " << ready_q.size() << " Total_proc: " << total_proc <<  endl;
+		// for(int i = 0; i < ready_q.size(); i++) {
+		// 	proc p = ready_q[i];
+		// 	cout << "<pid>: " << p.pid << ", <prio>: " << p.prio << ", <state>: " << p.state << endl;
+		// }
+
 		if(algo_flag == ROUND_ROBIN) next = round_robin();
 		else if(algo_flag == PRIORITY_RR) next = prio_round_robin();
 		if(next == NULL || next-> state != READY) continue;
@@ -207,7 +196,7 @@ int main(int argc, char* argv[]){
 		cout << "pid: " << next->pid << " is running" << endl;
 		int i;
 		for(i = 0; i < time_quanta; i++){
-			sleep(1);
+			usleep(100000);
 			if(IO_flag || terminated_flag) break;
 		}
 
@@ -222,16 +211,16 @@ int main(int argc, char* argv[]){
 				ready_q.push_back(*next);
 			}
 			else if(algo_flag == PRIORITY_RR){
-				prio_q_exp.push(*next);
+				prio_q_act.push(*next);
 			}
 		}
 
-		if(prio_q_act.empty()){
-			std::priority_queue<proc> temp;
-			temp = prio_q_act;
-			prio_q_act = prio_q_exp;
-			prio_q_exp = temp;
-		}
+		// if(prio_q_act.empty()){
+		// 	std::priority_queue<proc> temp;
+		// 	temp = prio_q_act;
+		// 	prio_q_act = prio_q_exp;
+		// 	prio_q_exp = temp;
+		// }
 		free(next);
 	} while(total_proc > 0) ;
 	//while(!ready_q.empty() || !prio_q_act.empty() || wait_q > 0);
