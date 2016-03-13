@@ -1,6 +1,9 @@
-all: manager producer consumer unit_test ass5.h
+all: manager producer consumer unit_test evaluate ass5.h
 
-manager: manager.c ass5.h
+evaluate: evaluate.c manager
+	gcc evaluate.c -o evaluate -std=gnu99
+
+manager: manager.c ass5.h producer consumer
 	gcc manager.c -o manager -std=gnu99 -pthread
 
 producer: producer.c ass5.h

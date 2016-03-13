@@ -10,12 +10,23 @@
 #include <unistd.h>
 #include <time.h>
 #include <string.h>
+#include <signal.h>
 
+int num_consumes;
+
+// Return number of consumes by this consumer when killed by manager
+void terminateHandler(int SIG) {
+	exit(num_consumes);
+}
 
 int main(int argc, char* argv[]) {
 	int consumer_id = atoi(argv[1]);
 	double p = atof(argv[2]);
 	int avoid = atoi(argv[3]);
+	num_consumes = 0;
+
+	signal(SIGUSR1, terminateHandler);
+
 
 	printf("consumer %d: Started\n", consumer_id);
 
@@ -62,7 +73,7 @@ int main(int argc, char* argv[]) {
 				exit(0);
 			}
 			int val = atoi(recvdMsg.mtext);
-			printf("consumer %d: Successfully consumed %d from queue %d, pushed by producer %ld\n", consumer_id, val, queue, recvdMsg.mtype - NUM_PC);
+			printf("consumer %d: consume no:%d queue:%d value:%d producer:%ld\n", consumer_id, num_consumes++, queue, val, recvdMsg.mtype - NUM_PC);
 		}
 
 		if(bothQueues) {
@@ -91,7 +102,7 @@ int main(int argc, char* argv[]) {
 					exit(0);
 				}
 				int val = atoi(recvdMsg.mtext);
-				printf("consumer %d: Successfully consumed %d from queue_p %d, pushed by producer %ld\n", consumer_id, val, queue_p, recvdMsg.mtype - NUM_PC);
+				printf("consumer %d: consume no:%d queue_p:%d value:%d producer:%ld\n", consumer_id, num_consumes++, queue_p, val, recvdMsg.mtype - NUM_PC);
 			}
 		}
 
@@ -101,7 +112,6 @@ int main(int argc, char* argv[]) {
 		sem_post(mat_lock);
 		sem_post(q_lock[queue]);
 
-
 		if(bothQueues) {
 			sem_wait(mat_lock);
 			updateMatrix(matrix_file, consumer_id, queue_p, STATE_NONE);
@@ -110,6 +120,6 @@ int main(int argc, char* argv[]) {
 			sem_post(q_lock[queue_p]);
 		}
 
-		usleep(10000 * (rand() % 10));
+		usleep(1 * (rand() % 10 + 1));
 	}
 }
