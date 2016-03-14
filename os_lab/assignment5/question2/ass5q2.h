@@ -13,36 +13,50 @@ int coinToss(double p) {
 	return (rand() < p * RAND_MAX) ? 1 : 0;
 }
 
-//Allocate memory and initialize matrix
-void init_matrix(int **matrix, int n){
-	int i, j;
+// //Allocate memory and initialize matrix
+// void init_matrix(int **matrix, int n){
+// 	int i, j;
+//
+// 	matrix = (int**)malloc(NUM_DIRECTION*sizeof(int*));
+// 	for(i = 0; i < NUM_DIRECTION; i++){
+// 		matrix[i] = (int*)malloc(n*sizeof(int));
+// 	}
+//
+// 	for(i = 0; i < NUM_DIRECTION; i++){
+// 		for(j = 0; j < n; j++){
+// 			matrix[j][i] = NA;
+// 		}
+// 	}
+// }
 
-	matrix = (int**)malloc(n*sizeof(int*));
-	for(i = 0; i < n; i++){
-		matrix[i] = (int*)malloc(NUM_DIRECTION*sizeof(int));
-	}
+//Allocate memory and initialize matrix
+void print_matrix(int matrix[][NUM_DIRECTION], int n){
+	int i, j;
 
 	for(i = 0; i < n; i++){
 		for(j = 0; j < NUM_DIRECTION; j++){
-			matrix[i][j] = 0;
+			printf("%d  ", matrix[i][j]);
+		}
+		printf("\n");
+	}
+}
+
+void readMatrix(FILE* matrix_file, int matrix[][NUM_DIRECTION], int n) {
+	rewind(matrix_file);
+	for(int i = 0; i < n; i++) {
+		for(int j = 0; j < NUM_DIRECTION; j++) {
+			fscanf(matrix_file, "%d", &matrix[i][j]);
+			// printf("stored value %d\n", matrix[i][j]);
 		}
 	}
 }
 
-void readMatrix(FILE* matrix_file, int **matrix, int n) {
+void writeMatrix(FILE* matrix_file, int matrix[][NUM_DIRECTION], int n) {
 	rewind(matrix_file);
-	for(int i = 0; i < NUM_DIRECTION; i++) {
-		for(int j = 0; j < n; j++) {
-			fscanf(matrix_file, "%d", &matrix[j][i]);
-		}
-	}
-}
-
-void writeMatrix(FILE* matrix_file, int **matrix, int n) {
-	rewind(matrix_file);
-	for(int i = 0; i < NUM_DIRECTION; i++) {
-		for(int j = 0; j < n; j++) {
-			fprintf(matrix_file, "%d	", matrix[j][i]);
+	for(int i = 0; i < n; i++) {
+		for(int j = 0; j < NUM_DIRECTION; j++) {
+			// printf("writing %d\n", matrix[i][j]);
+			fprintf(matrix_file, "%d	", matrix[i][j]);
 		}
 		fprintf(matrix_file, "\n");
 	}
@@ -52,17 +66,17 @@ void updateMatrix(FILE* matrix_file, int train_id, int direction, int state, int
 	fflush(matrix_file);
 	int matrix[NUM_DIRECTION][n];
 	readMatrix(matrix_file, matrix, n);
-	matrix[direction][train_id] = state;
+	matrix[train_id][direction] = state;
 	writeMatrix(matrix_file, matrix, n);
 	fflush(matrix_file);
 }
 
 //NOTE : This check cycle function is Hardcoded for our use, it will detect a cycle of length 8
-int checkCycle(int **matrix, int *cycle, int n) {
+int checkCycle(int matrix[][NUM_DIRECTION], int *cycle, int n) {
 	int flag = 0, j = 0;
 
 	for(int i = 0; i < n; i++){
-		if(matrix[(i+1)%4][i] == ACQUIRED && matrix[(i+1)%4][i] == REQUESTED){
+		if(matrix[(i+1)%4][i] == 2 && matrix[(i+1)%4][i] == 1){
 			cycle[j++] = matrix[i][i];
 			cycle[j++] = matrix[i+1][i+1];
 			if(j == 7) flag = 1;

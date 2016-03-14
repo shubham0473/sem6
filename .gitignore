@@ -39,5 +39,7 @@
 *.ppt
 *.pptx
 
+#TXT FILES FOR TESTING
+*.txt
 .*
 !/.gitignore

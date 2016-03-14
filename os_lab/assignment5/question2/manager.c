@@ -31,10 +31,10 @@ int main(int argc, char* argv[]){
     char sequence[MAX_TRAINS];
     int n;                                      //length of the sequence
     int m = NUM_DIRECTION;                                  //no. of semaphores
-    int **matrix;
     sem_t* direction_lock[NUM_DIRECTION];
-    sem_t* mat_lock;
+    sem_t* matrix_lock;
     int *train_pid;
+    double p;
 
     int train_count = 0;
 
@@ -43,7 +43,9 @@ int main(int argc, char* argv[]){
         return -1;
     }
 
-    fp = fopen(argv[2], 'r');
+    sscanf(argv[1], "%lf", &p);
+
+    fp = fopen(argv[2], "r");
     if(fp == NULL)
     {
         perror("Error: ");
@@ -55,20 +57,41 @@ int main(int argc, char* argv[]){
 
     n = strlen(sequence);
 
-    init_matrix(matrix, n);
+    int matrix[n][NUM_DIRECTION];
+
+    for(int i = 0; i < n; i++) {
+        for(int j = 0; j < NUM_DIRECTION; j++) {
+            matrix[i][j] = 0;
+        }
+
+    }
+
+    // for(int i = 0; i < NUM_DIRECTION; i++) {
+    //     for(int j = 0; j < n; j++) {
+    //         printf("%d\t", matrix[j][i]);
+    //     }
+    //     printf("\n");
+    //
+    // }
+
+    // init_matrix(matrix, n);
     process_sequence(sequence, n);
 
-    sem_unlink("mat_lock");                  //destroy the existing semaphores, if any
-    mat_lock = sem_open("mat_lock", O_CREAT, O_RDWR, 1);
-    sem_wait(mat_lock);
+    // for(int i = 0; i < n; i++){
+    //     printf("%d\n", sequence[i]);
+    // }
+
+    sem_unlink("matrix_lock");                  //destroy the existing semaphores, if any
+    matrix_lock = sem_open("matrix_lock", O_CREAT, O_RDWR, 1);
+    sem_wait(matrix_lock);
     FILE* matrix_file = fopen("matrix.txt", "w+");
     writeMatrix(matrix_file, matrix, n);
     fflush(matrix_file);
     readMatrix(matrix_file, matrix, n);
     printf("manager: Matrix file initialized to:\n");
-    writeMatrix(stdout, matrix, n);
-    fclose(matrix_file);
-    sem_post(mat_lock);
+    // writeMatrix(stdout, matrix, n);
+    print_matrix(matrix, n);
+    sem_post(matrix_lock);
 
 
     sem_unlink("north_lock");                //destroy the existing semaphores, if any
@@ -98,48 +121,69 @@ int main(int argc, char* argv[]){
 
     train_pid = (int*)malloc(n*sizeof(int));            //Allocate memory
 
+    printf("semaphores done\n");
     while(1){
 
         if(train_count < n)
         {//While all the trains are not created
-            if(coinToss(atoi(argv[1])))
+            printf("All the trains are not yet created\n");
+            if(coinToss(p))
             {   //check for deadlocks with probability
-                sem_wait(mat_lock);
+                printf("checking deadlocks\n");
+                sem_wait(matrix_lock);
                 matrix_file = fopen("matrix.txt", "r+");
                 fflush(matrix_file);
                 readMatrix(matrix_file, matrix, n);
-                writeMatrix(stdout, matrix, n);
-                fclose(matrix_file);
-                sem_post(mat_lock);
+                // writeMatrix(stdout, matrix, n);
+                print_matrix(matrix, n);
+                sem_post(matrix_lock);
             }
             else
             {   //Create train with probability 1-p
+                printf("creating train\n");
                 train_pid[train_count] = fork();
-                train_count++;
+                printf("%d\n", train_pid[train_count]);
                 if(train_pid[train_count] == 0) {
-                    char* args[4];
-                    args[0] = "train";
-                    sprintf(args[1], "%d", train_count);
-                    sprintf(args[2], "%d", sequence[train_count]);
-                    sprintf(args[3], "%d", n);
-                    execv(args[0], args);
+                    printf("hi child\n");
+                    char args[7][100];
+                    sprintf(args[0], "%s", "xterm");
+                    sprintf(args[1], "%s", "-hold");
+                    sprintf(args[2], "%s", "-e");
+                    sprintf(args[3], "%s/./train", getcwd(NULL, 0));
+                    sprintf(args[4], "%d", train_count);
+                    sprintf(args[5], "%d", sequence[train_count]);
+                    sprintf(args[6], "%d", n);
+                    execl("/usr/bin/xterm", args[0], args[1], args[2], args[3], args[4], args[5],args[6], NULL);
                     perror("Could not start train: ");
+
+                }
+                else
+                {
+                    train_count++;              //increment count in parent
                 }
             }
 
         }
         else
         {  //after all the trains are created, only check for deadlocks
-            sem_wait(mat_lock);
-            matrix_file = fopen("matrix.txt", "r+");
+            int cycle[10];
+            printf("All trains created, only checking for deadlocks\n");
+            sem_wait(matrix_lock);
+            // matrix_file = fopen("matrix.txt", "r+");
             fflush(matrix_file);
             readMatrix(matrix_file, matrix, n);
-            writeMatrix(stdout, matrix, n);
-            fclose(matrix_file);
-            sem_post(mat_lock);
+            print_matrix(matrix, n);
+            sem_post(matrix_lock);
+
+            if(checkCycle(matrix, cycle, n) == 1){
+                printf("cycle detected\n");
+                exit(0);
+            }
+            // sleep(1);
         }
+        // sleep(1);
 
     }
-
+    fclose(matrix_file);
     return 0;
 }
