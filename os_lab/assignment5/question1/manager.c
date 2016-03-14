@@ -1,5 +1,4 @@
 /*******************************************
-*
 *	Assignment 5, OS Lab, Spring 2016
 *
 *	Group 10:
@@ -23,16 +22,17 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include <sys/wait.h>
 #include <signal.h>
 #include <string.h>
 
 int main(int argc, char* argv[]) {
 
 	if(argc < 2) {
-		perror("Usage: manager <p value> <deadlock avoidance>");
+		perror("Usage: sudo ./manager <p value> <deadlock avoidance?>");
 		return -1;
 	}
-
+	printf("manager: Started with p = %s", argv[1]);
 	// Initialize matrix file
 	int producer_pid[NUM_PC], consumer_pid[NUM_PC];
 	int producer_states[NUM_PC][NUM_Q], consumer_states[NUM_PC][NUM_Q];
@@ -54,9 +54,9 @@ int main(int argc, char* argv[]) {
 	FILE* matrix_file = fopen("matrix.txt", "w+");
 	writeMatrix(matrix_file, producer_states, consumer_states);
 	fflush(matrix_file);
-	readMatrix(matrix_file, producer_states, consumer_states);
-	printf("manager: Matrix file initialized to:\n");
-	writeMatrix(stdout, producer_states, consumer_states);
+	// readMatrix(matrix_file, producer_states, consumer_states);
+	printf("manager: Matrix file initialized:\n");
+	// writeMatrix(stdout, producer_states, consumer_states);
 	fclose(matrix_file);
 	sem_post(mat_lock);
 
@@ -81,6 +81,7 @@ int main(int argc, char* argv[]) {
 		q_id[i] = msgget(Q_BASE_KEY + i, 0666 | IPC_CREAT);
 	}
 
+	// Create producer and consumer processes
 	for(int i = 0; i < NUM_PC; i++){
 		producer_pid[i] = fork();
 		if(producer_pid[i] == 0) {
@@ -91,9 +92,6 @@ int main(int argc, char* argv[]) {
 			execv(args[0], args);
 			perror("Could not start producer: "); // exec shouldnt return
 		}
-	}
-
-	for(int i = 0; i < NUM_PC; i++){
 		consumer_pid[i] = fork();
 		if(consumer_pid[i] == 0) {
 			char* args[5];
@@ -109,14 +107,16 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	int total_inserts = 0, total_consumes = 0;
+
 	while(1) {
-		sleep(2);
+		usleep(100000);
+		// sleep(2);
 
 		sem_wait(mat_lock);
 		matrix_file = fopen("matrix.txt", "r+");
 		fflush(matrix_file);
 		readMatrix(matrix_file, producer_states, consumer_states);
-		writeMatrix(stdout, producer_states, consumer_states);
 		fclose(matrix_file);
 		sem_post(mat_lock);
 
@@ -126,19 +126,38 @@ int main(int argc, char* argv[]) {
 			printCycle(cycle);
 			fflush(stdout);
 
-
 			for(int i = 0; i < NUM_Q; i++) {
 				sem_close(q_lock[i]);
 
 				q_id[i] = msgget(Q_BASE_KEY + i, 0666);
 				msgctl(q_id[i], IPC_RMID, NULL);
 			}
+
+			for(int i = 0; i < NUM_PC; i++) {
+				int status;
+				kill(producer_pid[i], SIGUSR1);
+				waitpid(producer_pid[i], &status, 0);
+				total_inserts += WEXITSTATUS(status);
+
+				kill(consumer_pid[i], SIGUSR1);
+				waitpid(consumer_pid[i], &status, 0);
+				total_consumes += WEXITSTATUS(status);
+			}
+
+			sem_wait(mat_lock);
+			writeMatrix(stdout, producer_states, consumer_states);
+			sem_post(mat_lock);
 			sem_close(mat_lock);
 
-			kill((pid_t) 0, SIGKILL);
-			return 0;
+			printf("Total inserts: %d, Total consumes: %d\n", total_inserts, total_consumes);
+			break;
 		}
 		printf("manager: No deadlock detected\n");
 	}
+
+	FILE* results_file = fopen("temp.txt", "w");
+	fprintf(results_file, "%s	%d	%d\n", argv[1], total_inserts, total_consumes);
+	fclose(results_file);
+
 	return 0;
 }

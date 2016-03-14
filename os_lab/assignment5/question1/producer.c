@@ -11,19 +11,29 @@
 #include <time.h>
 #include <string.h>
 #include <sys/time.h>
+#include <signal.h>
 
+int num_inserts;
+
+// Return number of inserts by this producer when killed by manager
+void terminateHandler(int SIG) {
+	exit(num_inserts);
+}
 
 int main(int argc, char* argv[]) {
 	int producer_id = atoi(argv[1]);
+	num_inserts = 0;
+
+	signal(SIGUSR1, terminateHandler);
 
 	printf("producer %d: Started\n", producer_id);
 
-	sem_t* mat_lock = sem_open("mat_lock", O_CREAT, O_RDWR, 0);
+	sem_t* mat_lock = sem_open("mat_lock", O_CREAT);
 	FILE* matrix_file = fopen("matrix.txt", "r+");
 
 	sem_t* q_lock[NUM_Q];
-	q_lock[0] = sem_open("q_lock_0", O_CREAT, O_RDWR, 1);
-	q_lock[1] = sem_open("q_lock_1", O_CREAT, O_RDWR, 1);
+	q_lock[0] = sem_open("q_lock_0", O_CREAT);
+	q_lock[1] = sem_open("q_lock_1", O_CREAT);
 
 	int q_id[NUM_Q];
 	q_id[0] = msgget(Q1_KEY, 0666);
@@ -59,7 +69,7 @@ int main(int argc, char* argv[]) {
 			if(msgsnd(q_id[queue], &sentMsg, strlen(sentMsg.mtext), 0) == -1) {
 				perror("Couldnt send message in queue\n");
 			}
-			printf("producer %d: Successfully inserted %d in queue %d\n", producer_id, val, queue);
+			printf("producer %d: insert no:%d queue:%d value:%d\n", producer_id, num_inserts++, queue, val);
 		}
 
 
@@ -69,6 +79,6 @@ int main(int argc, char* argv[]) {
 		sem_post(mat_lock);
 		sem_post(q_lock[queue]);
 
-		usleep(10000 * (rand() % 5));
+		usleep(1 * (rand() % 10) + 1);
 	}
 }
