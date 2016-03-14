@@ -35,5 +35,9 @@
 #PDF files
 *.pdf
 
+#PPT, PPTX files
+*.ppt
+*.pptx
+
 .*
 !/.gitignore
