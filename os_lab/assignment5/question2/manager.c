@@ -11,10 +11,10 @@
 #include "ass5q2.h"
 
 #define MAX_TRAINS 100
-#define N 1
-#define E 2
-#define S 3
-#define W 4
+#define N 0
+#define E 1
+#define S 2
+#define W 3
 
 
 void process_sequence(char *sequence, int n){
@@ -177,6 +177,7 @@ int main(int argc, char* argv[]){
 
             if(checkCycle(matrix, cycle, n) == 1){
                 printf("cycle detected\n");
+                printCycle(cycle);
                 exit(0);
             }
             // sleep(1);

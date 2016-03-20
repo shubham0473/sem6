@@ -74,13 +74,21 @@ void updateMatrix(FILE* matrix_file, int train_id, int direction, int state, int
 //NOTE : This check cycle function is Hardcoded for our use, it will detect a cycle of length 8
 int checkCycle(int matrix[][NUM_DIRECTION], int *cycle, int n) {
 	int flag = 0, j = 0;
-
+	int tot = 0;
 	for(int i = 0; i < n; i++){
-		if(matrix[(i+1)%4][i] == 2 && matrix[(i+1)%4][i] == 1){
-			cycle[j++] = matrix[i][i];
-			cycle[j++] = matrix[i+1][i+1];
-			if(j == 7) flag = 1;
+		for(int j = 0; j < 4; j++){
+			if(matrix[i][j] == 2 && matrix[i][(j+1)%4] == 1){
+				cycle[tot] = i;
+				cycle[tot+1] = j -1;
+				tot += 2;
+			}
+
 		}
+		// if(matrix[i][0] == 2 && matrix[(i+1)%4][] == 1){
+		// 	cycle[j++] = matrix[i][i];
+		// 	cycle[j++] = matrix[i+1][i+1];
+		// 	if(j == 7) flag = 1;
+		// }
 	}
 	return flag;
 }

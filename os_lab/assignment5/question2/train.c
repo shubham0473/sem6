@@ -9,12 +9,12 @@
 #include <time.h>
 #include <string.h>
 
-#define N 1
-#define E 2
-#define S 3
-#define W 4
+#define N 0
+#define E 1
+#define S 2
+#define W 3
 
-#define RIGHT(i) (i+1)%5
+#define RIGHT(i) (i+1)%4
 
 
 
@@ -78,10 +78,8 @@ int main(int argc, char* argv[]){
     FILE* matrix_file = fopen("matrix.txt", "r+");
 
     srand(time(NULL));
-    printf("okay 1\n");
 
     sem_wait(matrix_lock);
-    printf("okay 2\n");
     updateMatrix(matrix_file, t.id, t.direction, 1, n);
     printf("Train id: %d requests for direction %d lock\n", t.id, t.direction);
     sem_post(matrix_lock);
@@ -118,14 +116,14 @@ int main(int argc, char* argv[]){
     printf("Train id %d releases direction %d(its right) lock\n", t.id, RIGHT(t.direction));
     sem_post(matrix_lock);                                                        //release the mutual exlusion lock
 
-    sem_post(direction_lock[t.direction]);                   //release the semaphore of its own direction
+    sem_post(direction_lock[RIGHT(t.direction)]);                   //release the semaphore of its own direction
 
     sem_wait(matrix_lock);
     updateMatrix(matrix_file, t.id, t.direction, 0, n);                   //wait on semaphore of its own direction
-    printf("Train id: %d releases direction %d lock\n", t.id, RIGHT(t.direction));
+    printf("Train id: %d releases direction %d lock\n", t.id, t.direction);
     sem_post(matrix_lock);
 
-    sem_post(direction_lock[RIGHT(t.direction)]);            //release the semaphore of its right direction
+    sem_post(direction_lock[t.direction]);            //release the semaphore of its right direction
 
     fclose(matrix_file);
     return 0;
