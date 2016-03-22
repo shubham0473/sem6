@@ -1,4 +1,4 @@
-	#include <stdio.h>
+#include <stdio.h>
 #include <string.h>    //strlen
 #include <stdlib.h>    //strlen
 #include <sys/socket.h>
@@ -266,7 +266,8 @@ void run_POP() {
 					sscanf(buf, "%s %s", command, pass);
 					if(!strcmp(command, "PASS")) {
 						char query[1000];
-						sprintf(query, "SELECT * FROM networks_4_user WHERE user = `%s` AND password = `%s` AND domain = `%s`", user, pass, garuda_name);
+						sprintf(query, "SELECT * FROM networks_4_user WHERE user = '%s' AND password = '%s' AND domain = '%s'", user, pass, garuda_name);
+						printf("QUERY: %s", query);
 						if (mysql_query(conn, query)) {
 							fprintf(stderr, "%s\n", mysql_error(conn));
 							exit(1);
@@ -276,21 +277,19 @@ void run_POP() {
 							sprintf(buf, "+Ok");
 							write(POP_client_fd, buf, strlen(buf));
 						}
-						else
-						{
-							sprintf(buf, "-Err");
-							write(POP_client_fd, buf, strlen(buf));
-						}
-
+						mysql_free_result(res);
 					}
 					else {
 						sprintf(buf, "-Err");
 						write(POP_client_fd, buf, strlen(buf));
+						continue;
 					}
 				}
 				else if (!strcmp(command, "LIST")) {
 					char query[1000];
-					sprintf(query, "SELECT * FROM networks_4_mail WHERE recipient = `%s` AND domain = `%s`", user, garuda_name);
+					sprintf(query, "SELECT * FROM networks_4_mail WHERE recipient = '%s' AND domain = '%s'", user, garuda_name);
+					printf("QUERY: %s", query);
+
 					if (mysql_query(conn, query)) {
 						fprintf(stderr, "%s\n", mysql_error(conn));
 						exit(1);
@@ -303,15 +302,19 @@ void run_POP() {
 						sprintf(str, "%s\t%d\n", row[5], (int)strlen(row[2]));
 						strcat(buf, str);
 					}
-					write(POP_client_fd, buf, strlen(buf));
+					mysql_free_result(res);
 
+					write(POP_client_fd, buf, strlen(buf));
+					continue;
 				}
 				else if (!strcmp(command, "RETR")) {
 					int msgid;
 					sscanf(buf, "%s %d", command, &msgid);
 
 					char query[1000];
-					sprintf(query, "SELECT * FROM networks_4_mail WHERE maiID = `%d`", msgid);
+					sprintf(query, "SELECT * FROM networks_4_mail WHERE mailID = '%d'", msgid);
+					// printf("QUERY: %s", query);
+
 					if (mysql_query(conn, query)) {
 						fprintf(stderr, "%s\n", mysql_error(conn));
 						exit(1);
@@ -320,10 +323,36 @@ void run_POP() {
 					memset(buf, 0, BUF_SIZE);
 					sprintf(buf, "+Ok\n");
 					if ((row = mysql_fetch_row(res)) != NULL){
-						sprintf(buf, "+Ok\n\nSender: %s\nReceiver: %s\nBody: %s\nTimestamp: %s\n\n", row[0], row[1], row[2], row[3]);
+						sprintf(buf, "+Okk\n\nSender: %s\nReceiver: %s\nBody: %s\nTimestamp: %s\n\n", row[0], row[1], row[2], row[3]);
 					}
-					write(POP_client_fd, buf, strlen(buf));
+					mysql_free_result(res);
 
+					write(POP_client_fd, buf, strlen(buf));
+					continue;
+
+				}
+				else if (!strcmp(command, "STAT")) {
+					char query[1000];
+					sprintf(query, "SELECT * FROM networks_4_mail WHERE recipient = '%s' AND domain = '%s'", user, garuda_name);
+					printf("QUERY: %s", query);
+
+					if (mysql_query(conn, query)) {
+						fprintf(stderr, "%s\n", mysql_error(conn));
+						exit(1);
+					}
+					res = mysql_use_result(conn);
+					memset(buf, 0, BUF_SIZE);
+					sprintf(buf, "+Ok\n");
+					int num_maildrop = 0, size_maildrop = 0;
+					while ((row = mysql_fetch_row(res)) != NULL){
+						num_maildrop++;
+						size_maildrop += strlen(row[2]);
+					}
+					mysql_free_result(res);
+					sprintf(buf, "+Ok %d %d", num_maildrop, size_maildrop);
+
+					write(POP_client_fd, buf, strlen(buf));
+					continue;
 				}
 				else if (!strcmp(command, "QUIT")) {
 					sprintf(buf, "+Ok OKBYE!");
@@ -333,63 +362,45 @@ void run_POP() {
 				else {
 					sprintf(buf, "-Err");
 					write(POP_client_fd, buf, strlen(buf));
+					continue;
 				}
 			}
 
-
-			// sprintf(query, "SELECT newsID, head FROM tb_news WHERE tb_news.type = %d ORDER BY tb_news.news_date DESC", type);
-			// if (mysql_query(conn, query)) {
-			// 	fprintf(stderr, "%s\n", mysql_error(conn));
-			// 	exit(1);
-			// }
-			// res = mysql_use_result(conn);
-			// while ((row = mysql_fetch_row(res)) != NULL){
-			// 	sprintf(server_message, "%s | %s\n", row[0], row[1]);
-			// 	write(POP_client_fd, server_message, strlen(server_message));
-			// 	recv(POP_client_fd, client_message, 2000, 0);
-			// 	if(strcmp(client_message, "ok") != 0) break;
-			// }
-
-
 			close(POP_client_fd);
-			mysql_free_result(res);
 			mysql_close(conn);
 			exit(0);
 		}
 	}
-
-	return;
-
 }
 
-	int main(int argc , char *argv[])
-	{
-		if(argc < 2) {
-			printf("Usage: ./server <abc.com/xyz.com>\n");
-			exit(0);
-		}
-		printf("Select a port for SMTP:	");
-		scanf("%d", &port_SMTP);
-		printf("Select a port for POP:	");
-		scanf("%d", &port_POP);
-
-		strcat(garuda_name, argv[1]);
-
-		init_ports();
-
-		if(fork() == 0) {
-			printf("Starting SMTP server\n");
-			run_SMTP();
-			close(SMTP_server_fd);
-			printf("SMTP server shutting down\n");
-		}
-		else {
-			printf("Starting POP server\n");
-			run_POP();
-			close(POP_server_fd);
-			printf("POP server shutting down\n");
-		}
-
-		return 0;
-
+int main(int argc , char *argv[])
+{
+	if(argc < 2) {
+		printf("Usage: ./server <abc.com/xyz.com>\n");
+		exit(0);
 	}
+	printf("Select a port for SMTP:	");
+	scanf("%d", &port_SMTP);
+	printf("Select a port for POP:	");
+	scanf("%d", &port_POP);
+
+	strcat(garuda_name, argv[1]);
+
+	init_ports();
+
+	if(fork() == 0) {
+		printf("Starting SMTP server\n");
+		run_SMTP();
+		close(SMTP_server_fd);
+		printf("SMTP server shutting down\n");
+	}
+	else {
+		printf("Starting POP server\n");
+		run_POP();
+		close(POP_server_fd);
+		printf("POP server shutting down\n");
+	}
+
+	return 0;
+
+}
