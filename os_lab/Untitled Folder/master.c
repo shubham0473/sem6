@@ -27,33 +27,33 @@ typedef struct msgbuf {
 } Message;
 
 
-// typedef struct ATM{
-//     int atmid;
-//     int msgqid;
-//     int semid;
-//     int shmid;
-//
-// }ATM;
-//
-// typedef struct ATM_locator{
-//     ATM atm_list[MAX_ATM];
-// }ATM_locator;
+typedef struct ATM{
+    int atmid;
+    int msgqid;
+    int semid;
+    int shmid;
 
-// typedef struct transaction{
-//     int amount;
-//     struct timeval timestamp;
-//
-// }transaction;
-//
-// typedef struct account{
-//     int balance;
-//     struct timeval timestamp;
-// }account;
-//
-// typedef struct table{
-//     transaction trans_log[MAX_TRANSACTION_LOGS];
-//     account acc_table[MAX_ACCOUNT];
-// }table;
+}ATM;
+
+typedef struct ATM_locator{
+    ATM atm_list[MAX_ATM];
+}ATM_locator;
+
+typedef struct transaction{
+    int amount;
+    struct timeval timestamp;
+
+}transaction;
+
+typedef struct account{
+    int balance;
+    struct timeval timestamp;
+}account;
+
+typedef struct table{
+    transaction trans_log[MAX_TRANSACTION_LOGS];
+    account acc_table[MAX_ACCOUNT];
+}table;
 
 int init_msqid(int key){
     int msgqid = msgget(key, IPC_CREAT | 0666);
@@ -125,7 +125,7 @@ int main(int argc, char* argv[]){
             sprintf(args[4], "%d", i);
             sprintf(args[5], "%d", master_msgqid);
             sprintf(args[6], "%d", i);
-            sprintf(args[7]), "%d", i);
+            sprintf(args[7], "%d", i);
             execl("/usr/bin/xterm", args[0], args[1], args[2], args[3], args[4], args[5],args[6], args[7], NULL);
             perror("Could not start train: ");
 

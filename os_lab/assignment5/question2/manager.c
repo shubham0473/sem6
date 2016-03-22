@@ -120,7 +120,8 @@ int main(int argc, char* argv[]){
     }
 
     train_pid = (int*)malloc(n*sizeof(int));            //Allocate memory
-
+    fflush(matrix_file);
+    fclose(matrix_file);
     printf("semaphores done\n");
     while(1){
 
@@ -130,13 +131,20 @@ int main(int argc, char* argv[]){
             if(coinToss(p))
             {   //check for deadlocks with probability
                 printf("checking deadlocks\n");
-                sem_wait(matrix_lock);
+                int cycle[10];
                 matrix_file = fopen("matrix.txt", "r+");
-                fflush(matrix_file);
+                sem_wait(matrix_lock);
+                // fflush(matrix_file);
                 readMatrix(matrix_file, matrix, n);
                 // writeMatrix(stdout, matrix, n);
                 print_matrix(matrix, n);
                 sem_post(matrix_lock);
+                if(checkCycle(matrix, cycle, n) == 1){
+                    printf("cycle detected\n");
+                    printCycle(cycle);
+                    exit(0);
+                }
+                fclose(matrix_file);
             }
             else
             {   //Create train with probability 1-p
@@ -169,7 +177,7 @@ int main(int argc, char* argv[]){
             int cycle[10];
             printf("All trains created, only checking for deadlocks\n");
             sem_wait(matrix_lock);
-            // matrix_file = fopen("matrix.txt", "r+");
+            matrix_file = fopen("matrix.txt", "r+");
             fflush(matrix_file);
             readMatrix(matrix_file, matrix, n);
             print_matrix(matrix, n);
@@ -180,11 +188,12 @@ int main(int argc, char* argv[]){
                 printCycle(cycle);
                 exit(0);
             }
-            // sleep(1);
+            sleep(1);
+            fclose(matrix_file);
         }
         // sleep(1);
 
     }
-    fclose(matrix_file);
+    // fclose(matrix_file);
     return 0;
 }

@@ -1,4 +1,4 @@
-#include <stdio.h>
+	#include <stdio.h>
 #include <string.h>    //strlen
 #include <stdlib.h>    //strlen
 #include <sys/socket.h>
@@ -249,34 +249,90 @@ void run_POP() {
 			char buf[BUF_SIZE];
 			sprintf(buf, "+Ok Welcome to %s Garuda POP Server", garuda_name);
 			write(POP_client_fd, buf, strlen(buf));
+			char user[100], pass[100];
 			while(1) {
 				memset(buf, '\0', BUF_SIZE);
 				recv(POP_client_fd, buf, BUF_SIZE, 0);
 				char command[20];
-				sscanf(buf, "%s", command);
+
+				sscanf(buf, "%s %s", command, user);
 
 				if(!strcmp(command, "USER")) {
-					char* temp = strstr(buf, ":");
-					char sender[100];
-					sscanf(temp, ": %s", sender);
 					sprintf(buf, "+Ok");
 					write(POP_client_fd, buf, strlen(buf));
 
 					memset(buf, '\0', BUF_SIZE);
 					recv(POP_client_fd, buf, BUF_SIZE, 0);
-					sscanf(buf, "%s", command);
+					sscanf(buf, "%s %s", command, pass);
 					if(!strcmp(command, "PASS")) {
-						char* temp = strstr(buf, ":");
-						char receiver[100];
-						sscanf(temp, ": %s", sender);
-						sprintf(buf, "+Ok");
+						char query[1000];
+						sprintf(query, "SELECT * FROM networks_4_user WHERE user = `%s` AND password = `%s` AND domain = `%s`", user, pass, garuda_name);
+						if (mysql_query(conn, query)) {
+							fprintf(stderr, "%s\n", mysql_error(conn));
+							exit(1);
+						}
+						res = mysql_use_result(conn);
+						if ((row = mysql_fetch_row(res)) != NULL){
+							sprintf(buf, "+Ok");
+							write(POP_client_fd, buf, strlen(buf));
+						}
+						else
+						{
+							sprintf(buf, "-Err");
+							write(POP_client_fd, buf, strlen(buf));
+						}
+
+					}
+					else {
+						sprintf(buf, "-Err");
 						write(POP_client_fd, buf, strlen(buf));
 					}
-					else {}
+				}
+				else if (!strcmp(command, "LIST")) {
+					char query[1000];
+					sprintf(query, "SELECT * FROM networks_4_mail WHERE recipient = `%s` AND domain = `%s`", user, garuda_name);
+					if (mysql_query(conn, query)) {
+						fprintf(stderr, "%s\n", mysql_error(conn));
+						exit(1);
+					}
+					res = mysql_use_result(conn);
+					memset(buf, 0, BUF_SIZE);
+					sprintf(buf, "+Ok\n");
+					while ((row = mysql_fetch_row(res)) != NULL){
+						char str[10];
+						sprintf(str, "%s\t%d\n", row[5], (int)strlen(row[2]));
+						strcat(buf, str);
+					}
+					write(POP_client_fd, buf, strlen(buf));
+
+				}
+				else if (!strcmp(command, "RETR")) {
+					int msgid;
+					sscanf(buf, "%s %d", command, &msgid);
+
+					char query[1000];
+					sprintf(query, "SELECT * FROM networks_4_mail WHERE maiID = `%d`", msgid);
+					if (mysql_query(conn, query)) {
+						fprintf(stderr, "%s\n", mysql_error(conn));
+						exit(1);
+					}
+					res = mysql_use_result(conn);
+					memset(buf, 0, BUF_SIZE);
+					sprintf(buf, "+Ok\n");
+					if ((row = mysql_fetch_row(res)) != NULL){
+						sprintf(buf, "+Ok\n\nSender: %s\nReceiver: %s\nBody: %s\nTimestamp: %s\n\n", row[0], row[1], row[2], row[3]);
+					}
+					write(POP_client_fd, buf, strlen(buf));
 
 				}
 				else if (!strcmp(command, "QUIT")) {
+					sprintf(buf, "+Ok OKBYE!");
+					write(POP_client_fd, buf, strlen(buf));
 					break;
+				}
+				else {
+					sprintf(buf, "-Err");
+					write(POP_client_fd, buf, strlen(buf));
 				}
 			}
 

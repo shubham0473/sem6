@@ -23,6 +23,8 @@
 #define MTYPE_LEAVE 5
 #define MTYPE_SUCCESS 6
 #define MTYPE_ERROR 7
+#define MTYPE_MASTER_VERIFY 1
+
 
 typedef struct msgbuf {
     long mtype;
@@ -72,6 +74,18 @@ int init_shm(key_t key, int size){
 }
 
 
+void withdraw(){
+    localConsistencyCheck();
+
+}
+
+void deposit(){
+
+}
+
+void view(){
+    globalConsistencyCheck();
+}
 
 int main(int argc, char* argv[]){
 
@@ -89,18 +103,40 @@ int main(int argc, char* argv[]){
     table* data = shmat(shmid, NULL, 0);
 
     Message message;
+    while(1){
+        int status = msgrcv(msgqid, &message, MESSAGE_SIZE, 0, 0);
+        if(status == -1){
+            printf("msgrcv: error\n");
+            exit(0);
+        }
 
-    int status = msgrcv(msgqid, &message, MESSAGE_SIZE, 0, 0);
+        printf("%s\n", message.mtext);
 
-    printf("%s\n", message.mtext);
+        if(message.mtype == MTYPE_ENTER)
+        {
+            //VERIFY account
+            Message atm_msg;
+            atm_msg.mtype = MTYPE_MASTER_VERIFY;
+            strcpy(atm_msg.mtext, message.mtext);
+            if(msgsnd(msgqid, &atm_msg, strlen(atm_msg.mtext), 0) == -1){
+                printf("error\n");
+            }
+            Message master_msg;
+            status = msgrcv(master_msgqid, &master_msg, MESSAGE_SIZE, 0, 0);
+            if(status == -1){
+                printf("msgrcv: error\n");
+                exit(0);
+            }
+            printf("atm: notified master\n");
 
-    switch (message.mtype) {
-        case MTYPE_ENTER: enter(atoi(message.mtext), master_msgqid);
-        case MTYPE_WITHDRAW : withdraw();
-        case MTYPE_DEPOSIT : deposit();
-        case MTYPE_VIEW : view();
-        case MTYPE_LEAVE : leave();
-        default: break;
+        }
+
+        switch (message.mtype) {
+            case MTYPE_WITHDRAW : withdraw();
+            case MTYPE_DEPOSIT : deposit();
+            case MTYPE_VIEW : view();
+            default: break;
+        }
     }
 
     return 0;
