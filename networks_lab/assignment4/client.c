@@ -15,7 +15,7 @@ int connect_server();
 
 int debug;
 
-#define BUF_SIZE 10000
+#define BUF_SIZE 5000
 
 int show_menu() {
 	printf("\n1. Send new email\n");
@@ -50,7 +50,7 @@ void send_email() {
 	//// Receive welcome message
 	memset(buf, '\0', BUF_SIZE);
 	recv(sfd, buf, BUF_SIZE, 0);
-	if(debug) printf("Reply: %s\n", buf);
+	printf("Reply: %s\n", buf);
 	sscanf(buf, "%d %s", &reply_code, reply_message);
 	if(reply_code != 220) {
 		printf("Error: %s\n", reply_message);
@@ -76,8 +76,8 @@ void send_email() {
 	}
 
 	//// Send RCPT TOs
-	int more_rcpts = 0;
-	do {
+	// int more_rcpts = 0;
+	// do {
 		char receiver[100];
 		printf("Enter receiver:	");
 		scanf("%s", receiver);
@@ -91,13 +91,14 @@ void send_email() {
 			close(sfd);
 			return;
 		}
-		printf("Add more recipients [y/n]?:	");
-		char temp;
-		getchar();
-		scanf("%c", &temp);
-		if(temp == 'y' || temp == 'Y') more_rcpts = 1;
-		else more_rcpts = 0;
-	} while(more_rcpts);
+		if(reply_code == 251) printf("Recipient not in server, will try relaying\n");
+		// printf("Add more recipients [y/n]?:	");
+		// char temp;
+		// getchar();
+		// scanf("%c", &temp);
+		// if(temp == 'y' || temp == 'Y') more_rcpts = 1;
+		// else more_rcpts = 0;
+	// } while(more_rcpts);
 
 	//// Send DATA and message
 	write(sfd, "DATA\r\n", strlen("DATA\r\n"));
@@ -144,6 +145,8 @@ void send_email() {
 		close(sfd);
 		return;
 	}
+
+	write(sfd, "QUIT\r\n", strlen("QUIT\r\n"));
 
 	printf("Mail successfully sent!\n");
 	close(sfd);
@@ -245,35 +248,45 @@ void retrieve_email() {
 	printf("\nYou have the following emails:\nMail-id	Size\n%s\n", mail_list);
 
 	//// Try to RETR
-	printf("Enter mail id to read:	");
-	int mail_id;
-	scanf("%d", &mail_id);
-	sprintf(buf, "RETR %d\r\n", mail_id);
-	write(sfd, buf, strlen(buf));
-	if(debug) printf("Sent: %s\n", buf);
-	memset(buf, '\0', BUF_SIZE);
-	int rcv = recv(sfd, buf, BUF_SIZE, 0);
-	if(debug) printf("Reply %d bytes: %s\n", rcv, buf);
-	if(buf[0] != '+') {
-		printf("Error: %s\n", buf);
-		close(sfd);
-		return;
-	}
+	int more_mails = 0;
+	do {
+		printf("Enter mail id to read:	");
+		int mail_id;
+		scanf("%d", &mail_id);
+		sprintf(buf, "RETR %d\r\n", mail_id);
+		write(sfd, buf, strlen(buf));
+		if(debug) printf("Sent: %s\n", buf);
+		memset(buf, '\0', BUF_SIZE);
+		int rcv = recv(sfd, buf, BUF_SIZE, 0);
+		if(debug) printf("Reply %d bytes: %s\n", rcv, buf);
+		if(buf[0] != '+') {
+			printf("Error: %s\n", buf);
+			close(sfd);
+			return;
+		}
+		FILE* message_file = fopen("temp.txt", "w");
+		for(int i = 6; i < rcv; i++) {
+			if(debug) fprintf(stdout, "%c", buf[i]);
+			fprintf(message_file, "%c", buf[i]);
+			fflush(message_file);
+		}
+		if(fork() == 0) {
+			execlp("gedit", "gedit", "-s", "temp.txt", (char *) NULL);
+		}
+		printf("Please close the Gedit window when you're done reading.\n");
+		wait(NULL);
+		fclose(message_file);
+		remove("temp.txt");
 
-	FILE* message_file = fopen("temp.txt", "w");
-	for(int i = 6; i < rcv; i++)
-	{
-		// fprintf(stdout, "%c", buf[i]);
-		fprintf(message_file, "%c", buf[i]);
-		fflush(message_file);
-	}
-	if(fork() == 0) {
-		execlp("gedit", "gedit", "-s", "temp.txt", (char *) NULL);
-	}
-	printf("Please close the Gedit window when you're done reading.\n");
-	wait(NULL);
-	fclose(message_file);
-	remove("temp.txt");
+		printf("Retrieve more emails [y/n]?:	");
+		char temp;
+		getchar();
+		scanf("%c", &temp);
+		if(temp == 'y' || temp == 'Y') more_mails = 1;
+		else more_mails = 0;
+	} while(more_mails);
+
+	write(sfd, "QUIT\r\n", strlen("QUIT\r\n"));
 
 	return;
 }
