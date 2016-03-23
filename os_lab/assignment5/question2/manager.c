@@ -16,6 +16,14 @@
 #define S 2
 #define W 3
 
+int trains_passed;
+
+// Each trains signals manager on succesffuly crossing the junction
+void deadChild(int sig) {
+	// printf(">>>>Handler called\n");
+	trains_passed++;
+	return;
+}
 
 void process_sequence(char *sequence, int n){
     for(int i = 0; i < n; i++){
@@ -35,6 +43,9 @@ int main(int argc, char* argv[]){
     sem_t* matrix_lock;
     int *train_pid;
     double p;
+	trains_passed = 0;
+
+	signal(SIGUSR1, deadChild);
 
     int train_count = 0;
 
@@ -149,10 +160,13 @@ int main(int argc, char* argv[]){
 				fclose(matrix_file);
                 sem_post(matrix_lock);
                 if(checkCycle(matrix, cycle, n) == 1){
-                    printf("Manager: Cycle detected\n");
+					printf("Manager: Cycle detected\n");
 					print_matrix(matrix, n);
-                    printCycle(cycle);
-                    exit(0);
+					printCycle(cycle);
+					printf("Manager: Total %d trains out of %d crossed the junction before deadlock\n", trains_passed, n);
+					fflush(stdout);
+					kill(0, SIGINT);
+					exit(0);
                 }
 				else {
 					printf("Manager: No cycle detected\n");
@@ -188,7 +202,7 @@ int main(int argc, char* argv[]){
         else
         {  //after all the trains are created, only check for deadlocks
             int cycle[10];
-            printf("Manager: All trains created, checking for deadlock\n");
+            printf("Manager: All trains created, checking for deadlock (%d crossed so far)\n", trains_passed);
             sem_wait(matrix_lock);
             matrix_file = fopen("matrix.txt", "r");
             // fflush(matrix_file);
@@ -200,13 +214,16 @@ int main(int argc, char* argv[]){
 				printf("Manager: Cycle detected\n");
 				print_matrix(matrix, n);
 				printCycle(cycle);
+				printf("Manager: Total %d trains out of %d crossed the junction before deadlock\n", trains_passed, n);
+				fflush(stdout);
+				kill(0, SIGINT);
 				exit(0);
 			}
 			else {
 				printf("Manager: No cycle detected\n");
 			}
-			
-            sleep(1);
+
+            sleep(2);
         }
         // sleep(1);
 

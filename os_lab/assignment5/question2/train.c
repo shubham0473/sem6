@@ -8,6 +8,8 @@
 #include <unistd.h>
 #include <time.h>
 #include <string.h>
+#include <sys/types.h>
+#include <signal.h>
 
 #define N 0
 #define E 1
@@ -105,7 +107,8 @@ int main(int argc, char* argv[]){
 	printf("Train %d: requests for junction lock\n", t.id);
     sem_wait(mutex);
 	printf("Train %d: acquires junction lock, crossing now\n", t.id);
-    sleep(2);
+    // sleep(2);
+	usleep(1000);
     sem_post(mutex);
 	printf("Train %d: requests for junction lock\n", t.id);
 
@@ -124,5 +127,8 @@ int main(int argc, char* argv[]){
     sem_post(direction_lock[RIGHT(t.direction)]);
 
     fclose(matrix_file);
+
+	// printf(">>>>Sending SIGUSR1 to parent\n");
+	kill(getppid(), SIGUSR1);
     return 0;
 }
