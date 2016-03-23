@@ -267,7 +267,7 @@ void run_POP() {
 					if(!strcmp(command, "PASS")) {
 						char query[1000];
 						sprintf(query, "SELECT * FROM networks_4_user WHERE user = '%s' AND password = '%s' AND domain = '%s'", user, pass, garuda_name);
-						printf("QUERY: %s", query);
+						// printf("QUERY: %s", query);
 						if (mysql_query(conn, query)) {
 							fprintf(stderr, "%s\n", mysql_error(conn));
 							exit(1);
@@ -288,7 +288,7 @@ void run_POP() {
 				else if (!strcmp(command, "LIST")) {
 					char query[1000];
 					sprintf(query, "SELECT * FROM networks_4_mail WHERE recipient = '%s' AND domain = '%s'", user, garuda_name);
-					printf("QUERY: %s", query);
+					// printf("QUERY: %s", query);
 
 					if (mysql_query(conn, query)) {
 						fprintf(stderr, "%s\n", mysql_error(conn));
@@ -334,7 +334,7 @@ void run_POP() {
 				else if (!strcmp(command, "STAT")) {
 					char query[1000];
 					sprintf(query, "SELECT * FROM networks_4_mail WHERE recipient = '%s' AND domain = '%s'", user, garuda_name);
-					printf("QUERY: %s", query);
+					// printf("QUERY: %s", query);
 
 					if (mysql_query(conn, query)) {
 						fprintf(stderr, "%s\n", mysql_error(conn));

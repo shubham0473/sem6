@@ -20,7 +20,6 @@ typedef struct MESSAGE {
 } message;
 
 
-// NOTE: Hardcoded for NUM_Q queues and 10 processes, add params if needed
 void readMatrix(FILE* matrix_file, int producer_states[][NUM_Q], int consumer_states[][NUM_Q]) {
 	rewind(matrix_file);
 	for(int i = 0; i < NUM_Q; i++) {
@@ -33,7 +32,6 @@ void readMatrix(FILE* matrix_file, int producer_states[][NUM_Q], int consumer_st
 	}
 }
 
-// NOTE: Hardcoded for NUM_Q queues and 10 processes, add params if needed
 void writeMatrix(FILE* matrix_file, int producer_states[][NUM_Q], int consumer_states[][NUM_Q]) {
 	rewind(matrix_file);
 	for(int i = 0; i < NUM_Q; i++) {
@@ -84,12 +82,12 @@ int checkCycle(int consumer_states[][NUM_Q], int cycle[]) {
 	int count = 0;
 	for(int i = 0; i < NUM_PC; i++) {
 		if(consumer_states[i][0] == 1 && consumer_states[i][1] == 2) {
-			cycle[count++] = i;
+			cycle[count++] = i + NUM_PC;
 			cycle[count++] = 0;
 			flagA = 1;
 		}
 		if(consumer_states[i][0] == 2 && consumer_states[i][1] == 1) {
-			cycle[count++] = i;
+			cycle[count++] = i + NUM_PC;
 			cycle[count++] = 1;
 			flagB = 1;
 		}

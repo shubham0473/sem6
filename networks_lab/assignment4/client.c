@@ -237,13 +237,13 @@ void retrieve_email() {
 		memset(buf, '\0', BUF_SIZE);
 		sleep(1);
 		if(recv(sfd, buf, BUF_SIZE, MSG_DONTWAIT) == -1) break;
-		printf("Reply partial list: %s\n", buf);
+		if(debug) printf("Reply partial list: %s\n", buf);
 		strcat(mail_list, buf);
 	}
 
 	memset(buf, '\0', BUF_SIZE);
 	if(recv(sfd, buf, BUF_SIZE, MSG_DONTWAIT) != -1)
-		printf("Reply TESTING: %s\n", buf);
+		if(debug) printf("Reply TESTING: %s\n", buf);
 
 	printf("\nYou have the following emails:\nMail-id	Size\n%s\n", mail_list);
 

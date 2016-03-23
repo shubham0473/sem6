@@ -71,59 +71,57 @@ int main(int argc, char* argv[]){
         perror("Could not start semaphore\n");
         exit(0);
     }
-    printf("Successfully loaded semaphores\n");
-    printf("Train id: %d with direction %d started\n", t.id, t.direction);
+    // printf("Successfully loaded semaphores\n");
+    printf("Train %d: with direction %d started\n", t.id, t.direction);
 
     //file ptr to the matrix file
     FILE* matrix_file = fopen("matrix.txt", "r+");
 
     srand(time(NULL));
 
+	//// GET LOCK ON OWN DIR
     sem_wait(matrix_lock);
     updateMatrix(matrix_file, t.id, t.direction, 1, n);
-    printf("Train id: %d requests for direction %d lock\n", t.id, t.direction);
+    printf("Train %d: requests for direction %d lock\n", t.id, t.direction);
     sem_post(matrix_lock);
-
     sem_wait(direction_lock[t.direction]);
-
     sem_wait(matrix_lock);
     updateMatrix(matrix_file, t.id, t.direction, 2, n);
-    printf("Train id: %d acquired direction %d lock\n", t.id, t.direction);
+    printf("Train %d: acquired direction %d lock\n", t.id, t.direction);
     sem_post(matrix_lock);
 
-
-
+	//// GET LOCK ON RIGHT DIR
     sem_wait(matrix_lock);
-    updateMatrix(matrix_file, t.id, RIGHT(t.direction), 1, n);                   //wait on semaphore of its own direction
-    printf("Train id %d requests for direction %d(its right) lock\n",t.id, RIGHT(t.direction));
+    updateMatrix(matrix_file, t.id, RIGHT(t.direction), 1, n);
+    printf("Train %d: requests for direction %d(its right) lock\n",t.id, RIGHT(t.direction));
     sem_post(matrix_lock);
-
-    sem_wait(direction_lock[RIGHT(t.direction)]);            //wait on semaphore of its right direction
-
+    sem_wait(direction_lock[RIGHT(t.direction)]);
     sem_wait(matrix_lock);
-    updateMatrix(matrix_file, t.id, RIGHT(t.direction), 2, n);                   //wait on semaphore of its own direction
-    printf("Train id %d acquired direction %d(its right) lock\n", t.id, RIGHT(t.direction));
+    updateMatrix(matrix_file, t.id, RIGHT(t.direction), 2, n);
+    printf("Train %d: acquired direction %d(its right) lock\n", t.id, RIGHT(t.direction));
     sem_post(matrix_lock);
 
-    sem_wait(mutex);                                        //checks mutual exclusion at the junction
-
-    sleep(2);                                                //train crossing the junction
-
+	//// CROSS JUNCTION
+	printf("Train %d: requests for junction lock\n", t.id);
+    sem_wait(mutex);
+	printf("Train %d: acquires junction lock, crossing now\n", t.id);
+    sleep(2);
     sem_post(mutex);
+	printf("Train %d: requests for junction lock\n", t.id);
 
+	//// RELEASE OWN DIR LOCK
     sem_wait(matrix_lock);
-    updateMatrix(matrix_file, t.id, RIGHT(t.direction), 0, n);                   //wait on semaphore of its own direction
-    printf("Train id %d releases direction %d(its right) lock\n", t.id, RIGHT(t.direction));
-    sem_post(matrix_lock);                                                        //release the mutual exlusion lock
-
-    sem_post(direction_lock[RIGHT(t.direction)]);                   //release the semaphore of its own direction
-
-    sem_wait(matrix_lock);
-    updateMatrix(matrix_file, t.id, t.direction, 0, n);                   //wait on semaphore of its own direction
-    printf("Train id: %d releases direction %d lock\n", t.id, t.direction);
+    updateMatrix(matrix_file, t.id, t.direction, 0, n);
+    printf("Train %d: releases direction %d lock\n", t.id, t.direction);
     sem_post(matrix_lock);
+    sem_post(direction_lock[t.direction]);
 
-    sem_post(direction_lock[t.direction]);            //release the semaphore of its right direction
+	//// RELEASE RIGHT LOCK
+    sem_wait(matrix_lock);
+    updateMatrix(matrix_file, t.id, RIGHT(t.direction), 0, n);
+    printf("Train %d: releases direction %d(its right) lock\n", t.id, RIGHT(t.direction));
+    sem_post(matrix_lock);
+    sem_post(direction_lock[RIGHT(t.direction)]);
 
     fclose(matrix_file);
     return 0;
