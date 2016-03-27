@@ -9,7 +9,7 @@ struct thread_params {
 int** dist;
 
 void printOutput(int n) {
-	printf("Printing output...\n");
+	// printf("Printing output...\n");
 	for(int i = 0; i < n; i++) {
 		for(int j = 0; j < n; j++) {
 			printf("%d	", dist[i][j]);
@@ -19,7 +19,7 @@ void printOutput(int n) {
 }
 
 void readInput(int* nptr) {
-	printf("Reading input...\n");
+	// printf("Reading input...\n");
 	int m, n;
 	scanf("%d %d", &n, &m);
 	*nptr = n;
@@ -43,15 +43,15 @@ void readInput(int* nptr) {
 
 void updateDist(int i, int j, int k) {
 	//TODO: wait on semaphore and then update dist
-	printf("\nupdateDist(%d, %d, %d):\n", i, j, k);
+	// printf("\nupdateDist(%d, %d, %d):\n", i, j, k);
 	// printOutput(4);
-	printf("dist[i][j] = %d, dist[i][k] = %d, dist[k][j] = %d\n", dist[i][j], dist[i][k], dist[k][j]);
+	// printf("dist[i][j] = %d, dist[i][k] = %d, dist[k][j] = %d\n", dist[i][j], dist[i][k], dist[k][j]);
 	if(dist[i][k] == -1 || dist[k][j] == -1) {
-		printf("updateDist(%d, %d, %d) Not updated\n", i, j, k);
+		// printf("updateDist(%d, %d, %d) Not updated\n", i, j, k);
 		return;
 	}
 	if(dist[i][j] == -1 || dist[i][k] + dist[k][j] < dist[i][j]) {
-		printf("updateDist(%d, %d, %d) Updated\n", i, j, k);
+		// printf("updateDist(%d, %d, %d) Updated\n", i, j, k);
 		dist[i][j] = dist[i][k] + dist[k][j];
 		return;
 	}
@@ -64,10 +64,10 @@ void* ij_loop(void* params) {
 	int k = temp -> k;
 	int n = temp -> n;
 
-	printf("Thread with i = %d started\n", i);
+	// printf("Thread with i = %d, k = %d, n = %d started\n", i, k, n);
 
 	for(int j = 0; j < n; j++) {
-		printf("Calling updateDist(%d, %d, %d):\n", i, j, k);
+		// printf("Calling updateDist(%d, %d, %d):\n", i, j, k);
 		updateDist(i, j, k);
 	}
 }
@@ -77,13 +77,16 @@ int main(int argc, char* argv[]) {
 	readInput(&n);
 
 	for(int k = 0; k < n; k++) {
+		// printf(">>>>>>> K = %d\n", k);
 		pthread_t thread_id[n];
+		struct thread_params params[n];
 		for(int i = 0; i < n; i++) {
-			struct thread_params temp;
-			temp.i = i;
-			temp.k = k;
-			temp.n = n;
-			pthread_create(&thread_id[i], NULL, &ij_loop, &temp);
+			params[i].i = i;
+			params[i].k = k;
+			params[i].n = n;
+
+			// printf("Starting thread with i = %d\n", i);
+			pthread_create(&thread_id[i], NULL, &ij_loop, &params[i]);
 		}
 		for(int i = 0; i < n; i++) {
 			pthread_join(thread_id[i], NULL);
