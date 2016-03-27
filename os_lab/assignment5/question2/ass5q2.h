@@ -64,11 +64,13 @@ void writeMatrix(FILE* matrix_file, int matrix[][NUM_DIRECTION], int n) {
 
 void updateMatrix(FILE* matrix_file, int train_id, int direction, int state, int n)	{
 	fflush(matrix_file);
-	int matrix[NUM_DIRECTION][n];
+	int matrix[n][NUM_DIRECTION];
 	readMatrix(matrix_file, matrix, n);
 	matrix[train_id][direction] = state;
 	writeMatrix(matrix_file, matrix, n);
 	fflush(matrix_file);
+	// printf("Matrix updated to: \n");
+	// print_matrix(matrix, n);
 }
 
 //NOTE : This check cycle function is Hardcoded for our use, it will detect a cycle of length 8
@@ -78,22 +80,22 @@ int checkCycle(int matrix[][NUM_DIRECTION], int *cycle, int n) {
 	for(int i = 0; i < n; i++){
 		if(matrix[i][0] == 2 && matrix[i][1] == 1){
 			cycle[tot++] = i;
-			cycle[tot++] = 0;
+			cycle[tot++] = 1;
 			flag++;
 		}
 		if(matrix[i][1] == 2 && matrix[i][2] == 1){
 			cycle[tot++] = i;
-			cycle[tot++] = 1;
+			cycle[tot++] = 2;
 			flag++;
 		}
 		if(matrix[i][2] == 2 && matrix[i][3] == 1){
 			cycle[tot++] = i;
-			cycle[tot++] = 2;
+			cycle[tot++] = 3;
 			flag++;
 		}
 		if(matrix[i][3] == 2 && matrix[i][0] == 1){
 			cycle[tot++] = i;
-			cycle[tot++] = 3;
+			cycle[tot++] = 0;
 			flag++;
 		}
 
@@ -104,6 +106,9 @@ int checkCycle(int matrix[][NUM_DIRECTION], int *cycle, int n) {
 }
 
 void printCycle(int cycle[]) {
-	printf("train %d waiting for -> train %d waiting for -> train %d waiting for ->train %d waiting for -> train %d waiting for -> train %d waiting for -> train %d waiting for -> train %d waiting for -> train %d waiting for ->\n\n", cycle[0], cycle[1], cycle[2], cycle[3], cycle[4], cycle[5], cycle[6], cycle[7], cycle[0]);
+	for(int i = 0; i < 8; i += 2) {
+		printf("Train %d waiting for direction %d taken by train %d\n", cycle[i], cycle[(i + 1) % 8], cycle[(i + 2) % 8]);
+	}
+	// printf("train %d waiting for -> directiontrain %d waiting for -> train %d waiting for ->train %d waiting for -> train %d waiting for -> train %d waiting for -> train %d waiting for -> train %d waiting for -> train %d waiting for ->\n\n", cycle[0], cycle[1], cycle[2], cycle[3], cycle[4], cycle[5], cycle[6], cycle[7], cycle[0]);
 	return;
 }

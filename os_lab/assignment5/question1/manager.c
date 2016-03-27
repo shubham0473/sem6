@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
 		perror("Usage: sudo ./manager <p value> <deadlock avoidance?>");
 		return -1;
 	}
-	printf("manager: Started with p = %s", argv[1]);
+	printf("manager: Started with p = %s with%s deadlock avoidance\n", argv[1], (strcmp(argv[2], "1") ? "out" : ""));
 	// Initialize matrix file
 	int producer_pid[NUM_PC], consumer_pid[NUM_PC];
 	int producer_states[NUM_PC][NUM_Q], consumer_states[NUM_PC][NUM_Q];
