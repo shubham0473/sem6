@@ -12,7 +12,10 @@ void printOutput(int n) {
 	// printf("Printing output...\n");
 	for(int i = 0; i < n; i++) {
 		for(int j = 0; j < n; j++) {
-			printf("%d	", dist[i][j]);
+			if(dist[i][j] != -1)
+				printf("%d	", dist[i][j]);
+			else
+				printf("INF	");
 		}
 		printf("\n");
 	}

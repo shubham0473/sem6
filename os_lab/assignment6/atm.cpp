@@ -32,6 +32,8 @@ using namespace std;
 #define TRANS_DEPOSIT 2
 #define MTYPE_REPLY 8
 #define MTYPE_GLOBALCC 10
+#define AVAILABLE 1
+#define UNAVAILABLE 0
 
 typedef struct msg {
     long mtype;
@@ -42,6 +44,7 @@ typedef struct transaction{
     int amount;
     int acc_no;
     int type;
+	int avail;
     struct timeval timestamp;
 
 }transaction;
@@ -53,8 +56,8 @@ typedef struct account{
 }account;
 
 typedef struct table{
-    deque<transaction> transaction_log;
     account acc_table[MAX_ACCOUNT];
+	transaction transaction_log[MAX_TRANSACTION_LOGS];
 }table;
 
 
@@ -83,15 +86,58 @@ int init_shm(key_t key, size_t size){
     return shmid;
 }
 
+void init_table(table *data){
+	for(int i = 0; i < MAX_TRANSACTION_LOGS; i++){
+		data->transaction_log[i].amount = 0;
+		data->transaction_log[i].acc_no = 0;
+		data->transaction_log[i].avail = AVAILABLE;
+		data->transaction_log[i].type = -1;
+		// data->transaction_log[i].timestamp = t.timestamp;
+
+	}
+
+	for(int i = 0; i < MAX_ACCOUNT; i++){
+		data->acc_table[i].balance = 0;
+		data->acc_table[i].acc_no = 0;
+		return;
+
+	}
+}
+void push_transaction(table *data, transaction t){
+	for(int i = 0; i < MAX_TRANSACTION_LOGS; i++){
+		if(data->transaction_log[i].avail == AVAILABLE && i < MAX_TRANSACTION_LOGS){
+			data->transaction_log[i].amount = t.amount;
+			data->transaction_log[i].acc_no = t.acc_no;
+			data->transaction_log[i].avail = t.avail;
+			data->transaction_log[i].type = t.type;
+			data->transaction_log[i].timestamp = t.timestamp;
+			return;
+		}
+	}
+}
+
+void print_transaction(table *data){
+	for(int i = 0; i < MAX_TRANSACTION_LOGS; i++){
+		if(data->transaction_log[i].avail == UNAVAILABLE && i < MAX_TRANSACTION_LOGS){
+			cout << data->transaction_log[i].amount << endl;
+			cout << data->transaction_log[i].acc_no << endl;
+			cout << data->transaction_log[i].avail  << endl;
+			cout << data->transaction_log[i].type << endl;
+			// cout << data->transaction_log[i].timestamp << endl;
+		}
+	}
+}
 
 int localConsistencyCheck(int shmid, int amt, int acc_no, int tot_ac, int tot_atm){
     int current_balance;
     table* data = (table*)shmat(shmid, NULL, 0);
-    for(int i = 0; i < tot_ac; i++){
+    for(int i = 0; i < MAX_ACCOUNT; i++){
         if(data->acc_table[i].acc_no == acc_no){
             current_balance = data->acc_table[i].balance;
         }
     }
+
+	cout << current_balance << endl;
 
     FILE * fp;
     fp = fopen("ATM_locator.txt", "r");
@@ -106,10 +152,10 @@ int localConsistencyCheck(int shmid, int amt, int acc_no, int tot_ac, int tot_at
         char semid_x[10];
         int shmid_x;            // shmid on atm x
         fscanf(fp, "%d\t%d\t%s\t%d", &atmid_x, &msgqid_x, semid_x, &shmid_x);
-        shmid_x = init_shm(shmid_x, (sizeof(table)+sizeof(transaction)*MAX_TRANSACTION_LOGS));
+        shmid_x = init_shm(shmid_x, sizeof(table));
         table *temp = (table*)shmat(shmid_x, NULL, 0);
 
-        for(int j = 0; !temp->transaction_log.empty(); j++){
+        for(int j = 0; temp->transaction_log[j].avail == UNAVAILABLE && j < MAX_TRANSACTION_LOGS; j++){
             if(temp->transaction_log[j].acc_no == acc_no){
                 if(temp->transaction_log[j].type == TRANS_WITHDRAW) current_balance -= temp->transaction_log[j].amount;
                 else if(temp->transaction_log[j].type == TRANS_DEPOSIT) current_balance += temp->transaction_log[j].amount;
@@ -127,32 +173,35 @@ int localConsistencyCheck(int shmid, int amt, int acc_no, int tot_ac, int tot_at
         printf("Error detaching shm\n");
         exit(0);
     }
+	cout << current_balance << endl;
     if(amt > current_balance) return -1;
     else return 1;
 }
 
 void withdraw(int shmid, int amt, int acc_no, int tot_ac, int tot_atm, int msgqid){
-    table* data = (table*)shmat(shmid, NULL, 0);
     int valid = localConsistencyCheck(shmid, amt, acc_no, tot_ac, tot_atm);
     Message atm_msg;
     memset(&atm_msg, 0, sizeof(Message));
     // memset(atm_msg, 0, sizeof(atm_msg));
+	table* data = (table*)shmat(shmid, NULL, 0);
+
     if(valid == -1){
         strcpy(atm_msg.mtext, "ERROR");
-        atm_msg.mtype == MTYPE_REPLY;
+        atm_msg.mtype = MTYPE_REPLY;
 
     }
     else if(valid == 1){
         strcpy(atm_msg.mtext, "OK");
-        atm_msg.mtype == MTYPE_REPLY;
+        atm_msg.mtype = MTYPE_REPLY;
         transaction t;
         t.amount = amt;
         t.acc_no = acc_no;
+		t.avail = UNAVAILABLE;
         t.type = TRANS_WITHDRAW;
         gettimeofday(&t.timestamp,NULL);
 
-        data->transaction_log.push_back(t);
-
+        // data->transaction_log.push_back(t);
+		push_transaction(data, t);
     }
 
     int status = msgsnd(msgqid, &atm_msg, strlen(atm_msg.mtext), 0);
@@ -178,9 +227,11 @@ void deposit(int shmid, int amt, int acc_no, int tot_ac, int msgqid){
     t.amount = amt;
     t.acc_no = acc_no;
     t.type = TRANS_DEPOSIT;
+	t.avail = UNAVAILABLE;
     gettimeofday(&t.timestamp,NULL);
 
-    data->transaction_log.push_back(t);
+    // data->transaction_log.push_back(t);
+	push_transaction(data, t);
 
     Message atm_msg;
     memset(&atm_msg, 0, sizeof(Message));
@@ -201,7 +252,7 @@ void deposit(int shmid, int amt, int acc_no, int tot_ac, int msgqid){
 
 }
 
-void view(int shmid, int acc_no, int master_msgqid){
+void view(int shmid, int acc_no, int master_msgqid, int msgqid){
     Message atm_msg;
     memset(&atm_msg, 0, sizeof(Message));
     // memset(atm_msg, 0, sizeof(atm_msg));
@@ -213,6 +264,55 @@ void view(int shmid, int acc_no, int master_msgqid){
         exit(0);
     }
 
+	Message master_msg;
+	memset(&master_msg, 0, sizeof(Message));
+	status = msgrcv(master_msgqid, &master_msg, MESSAGE_SIZE, MTYPE_REPLY, 0);
+	if(status == -1){
+		printf("msgrcv: error\n");
+		exit(0);
+	}
+	cout << "aftermsgrc]\n";
+	int new_bal = atoi(master_msg.mtext);
+	table* data = (table*)shmat(shmid, NULL, 0);
+	for(int i = 0; i < MAX_ACCOUNT; i++){
+		if(data->acc_table[i].acc_no == acc_no){
+			data->acc_table[i].balance = new_bal;
+			gettimeofday(&data->acc_table[i].timestamp,NULL);
+		}
+	}
+	for(int i = 0; i < MAX_ACCOUNT; i++){
+		if(data->acc_table[i].acc_no == acc_no){
+			printf("Available balance: %d\n", data->acc_table[i].balance);
+			Message atm_msg;
+		    memset(&atm_msg, 0, sizeof(Message));
+		    // memset(atm_msg, 0, sizeof(atm_msg));
+		    // strcpy(atm_msg.mtext, "OK");
+			sprintf(atm_msg.mtext, "%d", data->acc_table[i].balance);
+		    atm_msg.mtype = MTYPE_REPLY;
+		    int status = msgsnd(msgqid, &atm_msg, strlen(atm_msg.mtext), 0);
+		    if(status == -1){
+		        printf("Error msgsnd\n");
+		        exit(0);
+		    }
+		}
+	}
+	int ret = shmdt(data);
+    if(ret == -1){
+        printf("Error detaching shm\n");
+        exit(0);
+    }
+	return;
+}
+
+void checknMakeAc(table * data, int * tot_ac, int acc_no){
+	for(int i = 0; i < MAX_ACCOUNT; i++){
+		if(data->acc_table[i].acc_no == acc_no) return;
+	}
+	data->acc_table[*tot_ac].acc_no = acc_no;
+	data->acc_table[*tot_ac].balance = 0;
+	gettimeofday(&data->acc_table[*tot_ac].timestamp, NULL);
+	*tot_ac++;
+	return;
 }
 
 void enter(int shmid, int acc_no, int master_msgqid, int tot_ac, int msgqid){
@@ -244,6 +344,7 @@ void enter(int shmid, int acc_no, int master_msgqid, int tot_ac, int msgqid){
         gettimeofday(&data->acc_table[tot_ac].timestamp, NULL);
         tot_ac++;
     }
+	checknMakeAc(data, &tot_ac, acc_no);
     int ret = shmdt(data);
     if(ret == -1){
         printf("Error detaching shm\n");
@@ -251,7 +352,7 @@ void enter(int shmid, int acc_no, int master_msgqid, int tot_ac, int msgqid){
     }
     Message reply;
     memset(&reply, 0, sizeof(Message));
-    reply.mtype == MTYPE_REPLY;
+    reply.mtype = MTYPE_REPLY;
     strcpy(reply.mtext, "OK");
     if(msgsnd(msgqid, &reply, strlen(reply.mtext), 0) == -1){
         perror("msgsnd");
@@ -271,7 +372,7 @@ int main(int argc, char* argv[]){
     int atm_id = atoi(argv[1]);
     int master_msgqid = atoi(argv[2]);
     int msgqid = init_msqid(atoi(argv[3]));
-    int shmid = init_shm(atoi(argv[4]), (sizeof(table)+sizeof(transaction)*MAX_TRANSACTION_LOGS));
+    int shmid = init_shm(atoi(argv[4]), sizeof(table));
     int tot_atm = atoi(argv[5]);
 
 
@@ -279,7 +380,13 @@ int main(int argc, char* argv[]){
     int tot_ac = 0;
 
     cout << msgqid << " " << shmid << endl;
-
+	table* data = (table*)shmat(shmid, NULL, 0);
+	init_table(data);
+	int ret = shmdt(data);
+    if(ret == -1){
+        printf("Error detaching shm\n");
+        exit(0);
+    }
     Message message;
     while(1){
         cout << "before msgrcv" << endl;
@@ -295,11 +402,18 @@ int main(int argc, char* argv[]){
 
         switch (message.mtype) {
             case MTYPE_ENTER :
-            cl_ac_no = atoi(message.mtext);
-            enter(shmid, cl_ac_no, master_msgqid, tot_ac, msgqid);
-            case MTYPE_WITHDRAW : withdraw(shmid, atoi(message.mtext), cl_ac_no, tot_ac, tot_atm, msgqid);
-            case MTYPE_DEPOSIT : deposit(shmid, atoi(message.mtext), cl_ac_no, tot_ac, msgqid);
-            case MTYPE_VIEW : view(shmid, cl_ac_no, master_msgqid);
+            	cl_ac_no = atoi(message.mtext);
+            	enter(shmid, cl_ac_no, master_msgqid, tot_ac, msgqid);
+				break;
+            case MTYPE_WITHDRAW :
+				withdraw(shmid, atoi(message.mtext), cl_ac_no, tot_ac, tot_atm, msgqid);
+				break;
+            case MTYPE_DEPOSIT :
+				deposit(shmid, atoi(message.mtext), cl_ac_no, tot_ac, msgqid);
+				break;
+            case MTYPE_VIEW :
+				view(shmid, cl_ac_no, master_msgqid, msgqid);
+				break;
         }
     }
 

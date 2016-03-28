@@ -34,7 +34,8 @@ using namespace std;
 #define TRANS_WITHDRAW 1
 #define TRANS_DEPOSIT 2
 #define MTYPE_REPLY 8
-
+#define AVAILABLE 1
+#define UNAVAILABLE 0
 
 typedef struct msg {
     long mtype;
@@ -58,6 +59,7 @@ typedef struct transaction{
     int amount;
     int acc_no;
     int type;
+	int avail;
     struct timeval timestamp;
 
 }transaction;
@@ -69,8 +71,8 @@ typedef struct account{
 }account;
 
 typedef struct table{
-    deque<transaction> transaction_log;
     account acc_table[MAX_ACCOUNT];
+	transaction transaction_log[MAX_TRANSACTION_LOGS];
 }table;
 
 
@@ -100,18 +102,18 @@ int init_shm(key_t key, size_t size){
 }
 
 void update_atm_locator(FILE *fp, int atmid, int msgqid, int semid, int shmid, int tot_atm){
-    fflush(fp);
+    // fflush(fp);
 
     if(fp == NULL)
     {
         perror("Error: ");
         exit(-1);
     }
-    for(int i = 0; i < tot_atm; i++){
+	cout << tot_atm << endl;
         char sem[10];
         sprintf(sem, "atm%d", semid);
         fprintf(fp, "%d\t%d\t%s\t%d\n", atmid, msgqid, sem , shmid);          //initialize the ATM_locator file
-    }
+
     // fclose(fp);
     return;
 }
@@ -140,7 +142,7 @@ void globalConsistencyCheck(int shmid, int acc_no, int tot_atm, int tot_ac){
     account * data = (account*)shmat(shmid, NULL, 0);
 
     FILE * fp;
-    fp = fopen("atm_locator.txt", "r");
+    fp = fopen("ATM_locator.txt", "r");
     if(fp == NULL){
         printf("Error: fopen\n");
         exit(0);
@@ -152,23 +154,31 @@ void globalConsistencyCheck(int shmid, int acc_no, int tot_atm, int tot_ac){
         char semid_x[10];
         int shmid_x;            // shmid on atm x
         fscanf(fp, "%d\t%d\t%s\t%d", &atmid_x, &msgqid_x, semid_x, &shmid_x);
-        shmid_x = init_shm(shmid_x, (sizeof(table)+sizeof(transaction)*MAX_TRANSACTION_LOGS));
-        table *temp = (table*)shmat(shmid_x, NULL, 0);
+        shmid_x = init_shm(shmid_x, sizeof(table));
+		cout << atmid_x << " " << msgqid_x << " " << semid_x << " " << shmid_x << endl;
 
-        while(!temp->transaction_log.empty()){
-            transaction t = temp->transaction_log.front();
-            for(int j = 0; j < tot_ac; j++){
-                if(data[j].acc_no == acc_no){
+        table *temp = (table*)shmat(shmid_x, NULL, 0);
+		// int x;
+
+        for(int j = 0; temp->transaction_log[j].avail == UNAVAILABLE && j < MAX_TRANSACTION_LOGS && temp->transaction_log[j].acc_no == acc_no; j++){
+			cout << "enter first loop\n";
+            transaction t = temp->transaction_log[j];
+            for(int k = 0; k < MAX_ACCOUNT; k++){
+				cout << "enter second loop\n";
+                if(data[k].acc_no == acc_no){
+					// x = k;
                     if(t.type == TRANS_WITHDRAW){
-                        data[j].balance -= t.amount;
+                        data[k].balance -= t.amount;
                     }
                     else if(t.type == TRANS_DEPOSIT){
-                        data[j].balance += t.amount;
+                        data[k].balance += t.amount;
                     }
+					break;
                 }
             }
-            temp->transaction_log.pop_front();
+			temp->transaction_log[j].avail = AVAILABLE;
         }
+		// cout << "actual bal: " << temp->acc_table[x].balance << endl;
         int status = shmdt(temp);
         if(status == -1){
             printf("Error Detaching\n");
@@ -228,8 +238,8 @@ int main(int argc, char* argv[]){
             sprintf(args[3], "%s/./atm", getcwd(NULL, 0));
             sprintf(args[4], "%d", i);
             sprintf(args[5], "%d", master_msgqid);
-            sprintf(args[6], "%d", 1000+i);
-            sprintf(args[7], "%d", 500+i);
+            sprintf(args[6], "%d", 700+i);
+            sprintf(args[7], "%d", 800+i);
             sprintf(args[8], "%d", n);
             execl("/usr/bin/xterm", args[0], args[1], args[2], args[3], args[4], args[5],args[6], args[7], args[8], NULL);
             perror("Could not start atm: ");
@@ -237,7 +247,7 @@ int main(int argc, char* argv[]){
         }
         else
         {
-            update_atm_locator(fp, i, 1000+i, i, 500+i, n);
+            update_atm_locator(fp, i, 700+i, i, 800+i, n);
         }
     }
     fclose(fp);
@@ -265,7 +275,7 @@ int main(int argc, char* argv[]){
             Message master_msg;
             memset(&master_msg, 0, sizeof(Message));
 
-            for(int i = 0; i < tot_ac; i++){
+            for(int i = 0; i < MAX_ACCOUNT; i++){
                 if(data[i].acc_no == acc_no) new_bal = data[i].balance;
             }
             sprintf(master_msg.mtext, "%d", new_bal);

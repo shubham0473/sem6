@@ -54,8 +54,6 @@ void deposit(int msgqid){
     printf("ENTER AMOUNT: \n");
     int amount;
     Message client_msg;
-    int done = 0;
-    do{
         scanf("%d", &amount);
         client_msg.mtype = MTYPE_DEPOSIT;
         sprintf(client_msg.mtext, "%d", amount);
@@ -72,13 +70,11 @@ void deposit(int msgqid){
 
         if(strcmp(atm_msg.mtext, "OK") == 0){
             printf("SUCCESS\n");
-            done = 1;
         }
         else
         {
             printf("%s\n", atm_msg.mtext);
         }
-    }while(done != 1);
 }
 
 void view(int msgqid){
@@ -106,8 +102,6 @@ void withdraw(int msgqid){
     printf("ENTER AMOUNT: \n");
     int amount;
     Message client_msg;
-    int done = 0;
-    do{
         scanf("%d", &amount);
         client_msg.mtype = MTYPE_WITHDRAW;
         sprintf(client_msg.mtext, "%d", amount);
@@ -124,13 +118,11 @@ void withdraw(int msgqid){
 
         if(strcmp(atm_msg.mtext, "OK") == 0){
             printf("SUCCESS\n");
-            done = 1;
         }
         else
         {
             printf("%s\n", atm_msg.mtext);
         }
-    }while(done != 1);
 
 }
 
@@ -189,7 +181,10 @@ int main(){
     int atm_no;
     char temp[10];
     int acc_no = getpid();
+	int done = 0;
 
+while(1){
+	done = 0;
     printf("Welcome Client\nPlease type 'ENTERx'");
     scanf("%s", temp);
     char c = temp[5];
@@ -207,22 +202,31 @@ int main(){
 
     sem_t* lock = sem_open(semid, O_CREAT, O_RDWR, 1);
     sem_wait(lock);
-    int status = entry(acc_no, msgqid);
+    int status = entry(acc_no, msgqid);	
     if(!status){
         sem_post(lock);
         exit(0);
     }
-
+	while(done != 1){
     printf("Options:--\n1. WITHDRAW\n2.DEPOSIT\n3.VIEW\n4.LEAVE\n");
     scanf("%d", &option);
 
     switch (option) {
-        case WITHDRAW : withdraw(msgqid);
-        case DEPOSIT : deposit(msgqid);
-        case VIEW : view(msgqid);
-        case LEAVE : break;
+        case WITHDRAW :
+			withdraw(msgqid);
+			break;
+        case DEPOSIT :
+			deposit(msgqid);
+			break;
+        case VIEW :
+			view(msgqid);
+			break;
+        case LEAVE :
+			sem_post(lock);
+			done = 1;
+ 			break;
     }
-
-    sem_post(lock);
+}
+}
     return 0;
 }
