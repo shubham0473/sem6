@@ -19,12 +19,15 @@
 #include<sys/sem.h>
 #include<poll.h>
 #include<pthread.h>
+#include <sys/time.h>
 #include<sys/select.h>
 #include <ifaddrs.h>
 #include<sys/un.h>
 #define SA (struct sockaddr*)
 #include<netinet/ip.h>
 #include<netinet/ip_icmp.h>
+
+#define MIL 1000000
 
 
 unsigned short
@@ -100,53 +103,50 @@ main (int argc, char *argv[])
 
 
 
-	int hop = 0;
+	int hop = 1;
 
+	ip_hdr->ip_hl = 5;
+	ip_hdr->ip_v = 4;
+	ip_hdr->ip_tos = 0;
+	ip_hdr->ip_len = 20 + 8;
+	ip_hdr->ip_id = 10000;
+	ip_hdr->ip_off = 0;
+	ip_hdr->ip_p = IPPROTO_ICMP;
+	inet_pton (AF_INET, self_ip, &(ip_hdr->ip_src));
+	inet_pton (AF_INET, argv[2], &(ip_hdr->ip_dst));
+
+	struct icmphdr *icmphd = (struct icmphdr *) (buf + 20);
+	icmphd->type = ICMP_ECHO;
+	icmphd->code = 0;
+	icmphd->un.echo.id = 0;
 
 	while (1)
 	{
+		ip_hdr->ip_ttl = hop;
+		ip_hdr->ip_sum = csum ((unsigned short *) buf, 9);
 
+		icmphd->un.echo.sequence = hop + 1;
+		icmphd->checksum = 0;
+		icmphd->checksum = csum ((unsigned short *) (buf + 20), 4);
 
 		for(int i = 0; i < 3; i++) {
+			struct timeval start_time;
+			struct timeval end_time;
 
-
-			ip_hdr->ip_hl = 5;
-			ip_hdr->ip_v = 4;
-			ip_hdr->ip_tos = 0;
-			ip_hdr->ip_len = 20 + 8;
-			ip_hdr->ip_id = 10000;
-			ip_hdr->ip_off = 0;
-			ip_hdr->ip_p = IPPROTO_ICMP;
-			inet_pton (AF_INET, self_ip, &(ip_hdr->ip_src));
-			inet_pton (AF_INET, argv[2], &(ip_hdr->ip_dst));
-
-			struct icmphdr *icmphd = (struct icmphdr *) (buf + 20);
-			icmphd->type = ICMP_ECHO;
-			icmphd->code = 0;
-			icmphd->checksum = 0;
-			icmphd->un.echo.id = 0;
-
-
-			ip_hdr->ip_ttl = hop;
-			ip_hdr->ip_sum = csum ((unsigned short *) buf, 9);
-
-			icmphd->un.echo.sequence = hop + 1;
-			icmphd->checksum = csum ((unsigned short *) (buf + 20), 4);
-
-			printf("Sending packet with hop = %d\n", hop);
-
+			gettimeofday(&start_time, NULL);
+			long long temp_start = start_time.tv_sec * MIL + start_time.tv_usec;
 			sendto (sfd, buf, sizeof(struct ip) + sizeof(struct icmphdr), 0, SA & addr, sizeof addr);
 
 			char buff[4096] = { 0 };
 			struct sockaddr_in addr2;
 			socklen_t len = sizeof (struct sockaddr_in);
-			printf("Waiting on receive\n");
 			recvfrom (sfd, buff, sizeof(buff), 0, SA & addr2, &len);
-			printf("Received\n");
+			gettimeofday(&end_time, NULL);
+			long long temp_end = end_time.tv_sec * MIL + end_time.tv_usec;
 
 			struct icmphdr *icmphd2 = (struct icmphdr *) (buff + 20);
 			if (icmphd2->type != 0)
-			printf ("hop limit:%d Address:%s\n", hop, inet_ntoa (addr2.sin_addr));
+			printf ("hop limit:%d Address:%s Time:%lf ms\n", hop, inet_ntoa (addr2.sin_addr), ((double) (temp_end-temp_start))/1000);
 			else
 			{
 				printf ("Reached destination:%s with hop limit:%d\n",
