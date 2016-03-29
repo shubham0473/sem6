@@ -71,16 +71,12 @@ int init_msqid(int key){
 }
 
 int init_shm(key_t key, size_t size){
-    cout << key << " " << size << endl;
+    // cout << key << " " << size << endl;
     int shmid = shmget(key, size, IPC_CREAT | 0666);
     if (shmid == -1)
     {
         perror("shmget: shmget failed");
         exit(1);
-    }
-    else
-    {
-        (void) fprintf(stderr, "shmget: shmget returned %d\n", shmid);
     }
 
     return shmid;
@@ -116,17 +112,17 @@ void push_transaction(table *data, transaction t){
 	}
 }
 
-void print_transaction(table *data){
-	for(int i = 0; i < MAX_TRANSACTION_LOGS; i++){
-		if(data->transaction_log[i].avail == UNAVAILABLE && i < MAX_TRANSACTION_LOGS){
-			cout << data->transaction_log[i].amount << endl;
-			cout << data->transaction_log[i].acc_no << endl;
-			cout << data->transaction_log[i].avail  << endl;
-			cout << data->transaction_log[i].type << endl;
-			// cout << data->transaction_log[i].timestamp << endl;
-		}
-	}
-}
+// void print_transaction(table *data){
+// 	for(int i = 0; i < MAX_TRANSACTION_LOGS; i++){
+// 		if(data->transaction_log[i].avail == UNAVAILABLE && i < MAX_TRANSACTION_LOGS){
+// 			cout << data->transaction_log[i].amount << endl;
+// 			cout << data->transaction_log[i].acc_no << endl;
+// 			cout << data->transaction_log[i].avail  << endl;
+// 			cout << data->transaction_log[i].type << endl;
+// 			// cout << data->transaction_log[i].timestamp << endl;
+// 		}
+// 	}
+// }
 
 int localConsistencyCheck(int shmid, int amt, int acc_no, int tot_ac, int tot_atm){
     int current_balance;
@@ -137,7 +133,7 @@ int localConsistencyCheck(int shmid, int amt, int acc_no, int tot_ac, int tot_at
         }
     }
 
-	cout << current_balance << endl;
+	// cout << current_balance << endl;
 
     FILE * fp;
     fp = fopen("ATM_locator.txt", "r");
@@ -173,12 +169,13 @@ int localConsistencyCheck(int shmid, int amt, int acc_no, int tot_ac, int tot_at
         printf("Error detaching shm\n");
         exit(0);
     }
-	cout << current_balance << endl;
+	// cout << current_balance << endl;
     if(amt > current_balance) return -1;
     else return 1;
 }
 
-void withdraw(int shmid, int amt, int acc_no, int tot_ac, int tot_atm, int msgqid){
+void withdraw(int shmid, int amt, int acc_no, int tot_ac, int tot_atm, int msgqid, int atm_id){
+	printf("atm%d: running local consistency check for ac no %d\n", atm_id, acc_no);
     int valid = localConsistencyCheck(shmid, amt, acc_no, tot_ac, tot_atm);
     Message atm_msg;
     memset(&atm_msg, 0, sizeof(Message));
@@ -186,7 +183,7 @@ void withdraw(int shmid, int amt, int acc_no, int tot_ac, int tot_atm, int msgqi
 	table* data = (table*)shmat(shmid, NULL, 0);
 
     if(valid == -1){
-        strcpy(atm_msg.mtext, "ERROR");
+        strcpy(atm_msg.mtext, "INSUFFICIENT FUNDS");
         atm_msg.mtype = MTYPE_REPLY;
 
     }
@@ -252,10 +249,11 @@ void deposit(int shmid, int amt, int acc_no, int tot_ac, int msgqid){
 
 }
 
-void view(int shmid, int acc_no, int master_msgqid, int msgqid){
+void view(int shmid, int acc_no, int master_msgqid, int msgqid, int atm_id){
     Message atm_msg;
     memset(&atm_msg, 0, sizeof(Message));
     // memset(atm_msg, 0, sizeof(atm_msg));
+	printf("atm%d: requesting master for global consistency check\n", atm_id);
     atm_msg.mtype = MTYPE_GLOBALCC;
     sprintf(atm_msg.mtext, "%d", acc_no);
     int status = msgsnd(master_msgqid, &atm_msg, strlen(atm_msg.mtext), 0);
@@ -271,7 +269,7 @@ void view(int shmid, int acc_no, int master_msgqid, int msgqid){
 		printf("msgrcv: error\n");
 		exit(0);
 	}
-	cout << "aftermsgrc]\n";
+	// cout << "aftermsgrc]\n";
 	int new_bal = atoi(master_msg.mtext);
 	table* data = (table*)shmat(shmid, NULL, 0);
 	for(int i = 0; i < MAX_ACCOUNT; i++){
@@ -282,7 +280,7 @@ void view(int shmid, int acc_no, int master_msgqid, int msgqid){
 	}
 	for(int i = 0; i < MAX_ACCOUNT; i++){
 		if(data->acc_table[i].acc_no == acc_no){
-			printf("Available balance: %d\n", data->acc_table[i].balance);
+			// printf("Available balance: %d\n", data->acc_table[i].balance);
 			Message atm_msg;
 		    memset(&atm_msg, 0, sizeof(Message));
 		    // memset(atm_msg, 0, sizeof(atm_msg));
@@ -315,8 +313,8 @@ void checknMakeAc(table * data, int * tot_ac, int acc_no){
 	return;
 }
 
-void enter(int shmid, int acc_no, int master_msgqid, int tot_ac, int msgqid){
-    cout << "in mtye enter" << endl;
+void enter(int shmid, int acc_no, int master_msgqid, int tot_ac, int msgqid, int atm_id){
+    // cout << "in mtye enter" << endl;
     table* data = (table*)shmat(shmid, NULL, 0);
     //VERIFY account
     Message atm_msg;
@@ -336,20 +334,24 @@ void enter(int shmid, int acc_no, int master_msgqid, int tot_ac, int msgqid){
         printf("msgrcv: error\n");
         exit(0);
     }
-    printf("atm: notified master\n");
-    printf("%s\n", master_msg.mtext);
+    printf("\natm%d: notified master\n", atm_id);
     if(strcmp(master_msg.mtext, "NEW") == 0){
+		printf("New account created\n");
         data->acc_table[tot_ac].acc_no = acc_no;
         data->acc_table[tot_ac].balance = 0;
         gettimeofday(&data->acc_table[tot_ac].timestamp, NULL);
         tot_ac++;
     }
+	if(strcmp(master_msg.mtext, "OK") == 0){
+		printf("Account already exists\n");
+	}
 	checknMakeAc(data, &tot_ac, acc_no);
     int ret = shmdt(data);
     if(ret == -1){
         printf("Error detaching shm\n");
         exit(0);
     }
+	printf("atm%d: client %d entered\n", atm_id, acc_no);
     Message reply;
     memset(&reply, 0, sizeof(Message));
     reply.mtype = MTYPE_REPLY;
@@ -379,7 +381,7 @@ int main(int argc, char* argv[]){
     int cl_ac_no = 0;
     int tot_ac = 0;
 
-    cout << msgqid << " " << shmid << endl;
+    // cout << msgqid << " " << shmid << endl;
 	table* data = (table*)shmat(shmid, NULL, 0);
 	init_table(data);
 	int ret = shmdt(data);
@@ -389,30 +391,30 @@ int main(int argc, char* argv[]){
     }
     Message message;
     while(1){
-        cout << "before msgrcv" << endl;
+        // cout << "before msgrcv" << endl;
         memset(&message, 0, sizeof(Message));
         int status = msgrcv(msgqid, &message, MESSAGE_SIZE, 0, 0);
         if(status == -1){
             printf("msgrcv: error\n");
             exit(0);
         }
-        cout << "after msgrcv" << endl;
+        // cout << "after msgrcv" << endl;
 
-        printf("%s\n", message.mtext);
+        // printf("%s\n", message.mtext);
 
         switch (message.mtype) {
             case MTYPE_ENTER :
             	cl_ac_no = atoi(message.mtext);
-            	enter(shmid, cl_ac_no, master_msgqid, tot_ac, msgqid);
+            	enter(shmid, cl_ac_no, master_msgqid, tot_ac, msgqid, atm_id);
 				break;
             case MTYPE_WITHDRAW :
-				withdraw(shmid, atoi(message.mtext), cl_ac_no, tot_ac, tot_atm, msgqid);
+				withdraw(shmid, atoi(message.mtext), cl_ac_no, tot_ac, tot_atm, msgqid, atm_id);
 				break;
             case MTYPE_DEPOSIT :
 				deposit(shmid, atoi(message.mtext), cl_ac_no, tot_ac, msgqid);
 				break;
             case MTYPE_VIEW :
-				view(shmid, cl_ac_no, master_msgqid, msgqid);
+				view(shmid, cl_ac_no, master_msgqid, msgqid, atm_id);
 				break;
         }
     }

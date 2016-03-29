@@ -107,8 +107,8 @@ int main(int argc, char* argv[]){
 	printf("Train %d: requests for junction lock\n", t.id);
     sem_wait(mutex);
 	printf("Train %d: acquires junction lock, crossing now\n", t.id);
-    // sleep(2);
-	usleep(1000);
+    sleep(2);
+	// usleep(1000);
     sem_post(mutex);
 	printf("Train %d: requests for junction lock\n", t.id);
 

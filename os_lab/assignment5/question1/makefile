@@ -16,4 +16,4 @@ unit_test: unit_test.c ass5.h
 	gcc unit_test.c -o unit_test -std=gnu99
 
 clean:
-	rm manager consumer producer unit_test
+	rm manager consumer producer unit_test evaluate

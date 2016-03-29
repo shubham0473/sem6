@@ -86,16 +86,12 @@ int init_msqid(int key){
 }
 
 int init_shm(key_t key, size_t size){
-    cout << key << " " << size << endl;
+    // cout << key << " " << size << endl;
     int shmid;
     if ((shmid = shmget (key, size, IPC_CREAT | 0666)) == -1)
     {
         perror("shmget: shmget failed");
         exit(1);
-    }
-    else
-    {
-        printf("shmget: shmget returned %d\n", shmid);
     }
 
     return shmid;
@@ -109,7 +105,7 @@ void update_atm_locator(FILE *fp, int atmid, int msgqid, int semid, int shmid, i
         perror("Error: ");
         exit(-1);
     }
-	cout << tot_atm << endl;
+	// cout << tot_atm << endl;
         char sem[10];
         sprintf(sem, "atm%d", semid);
         fprintf(fp, "%d\t%d\t%s\t%d\n", atmid, msgqid, sem , shmid);          //initialize the ATM_locator file
@@ -122,11 +118,11 @@ void update_atm_locator(FILE *fp, int atmid, int msgqid, int semid, int shmid, i
 
 int checkAccount(int acc_no, int shmid, int tot_ac){
     account * data = (account*)shmat(shmid, NULL, 0);
-    cout << "in check ac" << endl;
+    // cout << "in check ac" << endl;
     for(int i = 0; i < tot_ac; i++){
         if(data[i].acc_no == acc_no) {
             return 1;
-            cout << "end of check ac ret 0" << endl;
+            // cout << "end of check ac ret 0" << endl;
         }
     }
     int status = shmdt(data);
@@ -134,7 +130,7 @@ int checkAccount(int acc_no, int shmid, int tot_ac){
         printf("Error detaching shm\n");
         exit(0);
     }
-    cout << "end of check ac ret 0" << endl;
+    // cout << "end of check ac ret 0" << endl;
     return 0;
 }
 
@@ -155,16 +151,16 @@ void globalConsistencyCheck(int shmid, int acc_no, int tot_atm, int tot_ac){
         int shmid_x;            // shmid on atm x
         fscanf(fp, "%d\t%d\t%s\t%d", &atmid_x, &msgqid_x, semid_x, &shmid_x);
         shmid_x = init_shm(shmid_x, sizeof(table));
-		cout << atmid_x << " " << msgqid_x << " " << semid_x << " " << shmid_x << endl;
+		// cout << atmid_x << " " << msgqid_x << " " << semid_x << " " << shmid_x << endl;
 
         table *temp = (table*)shmat(shmid_x, NULL, 0);
 		// int x;
 
         for(int j = 0; temp->transaction_log[j].avail == UNAVAILABLE && j < MAX_TRANSACTION_LOGS && temp->transaction_log[j].acc_no == acc_no; j++){
-			cout << "enter first loop\n";
+			// cout << "enter first loop\n";
             transaction t = temp->transaction_log[j];
             for(int k = 0; k < MAX_ACCOUNT; k++){
-				cout << "enter second loop\n";
+				// cout << "enter second loop\n";
                 if(data[k].acc_no == acc_no){
 					// x = k;
                     if(t.type == TRANS_WITHDRAW){
@@ -201,7 +197,7 @@ int main(int argc, char* argv[]){
     int shmid = init_shm(atoi(argv[2]), MAX_ACCOUNT*sizeof(account));
     FILE *fp;
     int tot_ac = 0;
-    cout << master_msgqid << " " << shmid << endl;
+    // cout << master_msgqid << " " << shmid << endl;
     int n = atoi(argv[3]);
 
 
@@ -224,24 +220,24 @@ int main(int argc, char* argv[]){
         return(-1);
     }
 
-    cout << "fopen done" << endl;
+    // cout << "fopen done" << endl;
 
 
     for(int i = 0; i < n; i++){
         atm_pid[i] = fork();
         if(atm_pid[i] == 0) {
-            cout << "ENTER CHILD" << endl;
+            // cout << "ENTER CHILD" << endl;
             char args[9][100];
-            sprintf(args[0], "%s", "xterm");
-            sprintf(args[1], "%s", "-hold");
-            sprintf(args[2], "%s", "-e");
-            sprintf(args[3], "%s/./atm", getcwd(NULL, 0));
+            // sprintf(args[0], "%s", "xterm");
+            // sprintf(args[1], "%s", "-hold");
+            // sprintf(args[2], "%s", "-e");
+            // sprintf(args[3], "%s/./atm", getcwd(NULL, 0));
             sprintf(args[4], "%d", i);
             sprintf(args[5], "%d", master_msgqid);
             sprintf(args[6], "%d", 700+i);
             sprintf(args[7], "%d", 800+i);
             sprintf(args[8], "%d", n);
-            execl("/usr/bin/xterm", args[0], args[1], args[2], args[3], args[4], args[5],args[6], args[7], args[8], NULL);
+            execl("atm", "atm", args[4], args[5], args[6], args[7], args[8], NULL);
             perror("Could not start atm: ");
 
         }
@@ -251,26 +247,28 @@ int main(int argc, char* argv[]){
         }
     }
     fclose(fp);
-    cout << "ATM CREATED" << endl;
+    // cout << "ATM CREATED" << endl;
     Message message;
     while(1){
         memset(&message, 0, sizeof(Message));
-        cout << "before msgrcv" << endl;
-        cout << master_msgqid << endl;
+        // cout << "before msgrcv" << endl;
+        // cout << master_msgqid << endl;
         int status = msgrcv(master_msgqid, &message, MESSAGE_SIZE, 0, 0);
         if(status == -1){
             printf("msgrcv: error\n");
             exit(0);
         }
-        cout << "after msgrcv" << endl;
-        cout << message.mtext << endl;
+        // cout << "after msgrcv" << endl;
+        // cout << message.mtext << endl;
 
         if(message.mtype == MTYPE_GLOBALCC)                        //either global consistency check
         {
-            cout << "in globalcc" << endl;
+            // cout << "in globalcc" << endl;
             int acc_no = atoi(message.mtext);
             int new_bal = 0;
+			printf("master: running global consistency check for ac no %d\n", acc_no);
             globalConsistencyCheck(shmid, acc_no, n, tot_ac);
+			printf("master: global consistency check done\n");
             account * data = (account*)shmat(shmid, NULL, 0);
             Message master_msg;
             memset(&master_msg, 0, sizeof(Message));
@@ -280,7 +278,7 @@ int main(int argc, char* argv[]){
             }
             sprintf(master_msg.mtext, "%d", new_bal);
             master_msg.mtype = MTYPE_REPLY;
-            cout << "before msggsnd" << endl;
+            // cout << "before msggsnd" << endl;
             if(msgsnd(master_msgqid, &master_msg, strlen(master_msg.mtext), 0) == -1){
                 printf("error\n");
             }
@@ -292,12 +290,13 @@ int main(int argc, char* argv[]){
         }
         else if(message.mtype == MTYPE_MASTER_VERIFY)                                                        //or new connection request
         {
-            cout << "in master verify" << endl;
+            // cout << "in master verify" << endl;
             int acc_no = atoi(message.mtext);
+			printf("master: verfiying account for acc no %d\n", acc_no);
             int status = checkAccount(acc_no, shmid, tot_ac);
             if(status == 1)
             {
-                cout << "status == 1" << endl;
+                // cout << "status == 1" << endl;
                 Message master_msg;
                 memset(&master_msg, 0, sizeof(Message));
                 strcpy(master_msg.mtext, "OK");
@@ -308,7 +307,7 @@ int main(int argc, char* argv[]){
             }
             else if(status == 0)
             {
-                cout << "status == 0" << endl;
+                // cout << "status == 0" << endl;
                 account * data = (account*)shmat(shmid, NULL, 0);
                 data[tot_ac].acc_no = acc_no;
                 data[tot_ac].balance = 0;
@@ -322,7 +321,7 @@ int main(int argc, char* argv[]){
                 if(msgsnd(master_msgqid, &master_msg, strlen(master_msg.mtext), 0) == -1){
                     printf("error\n");
                 }
-                printf("Message sent\n");
+                // printf("Message sent\n");
                 int status = shmdt(data);
                 if(status == -1){
                     printf("Error detaching shm\n");

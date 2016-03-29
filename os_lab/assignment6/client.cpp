@@ -131,20 +131,20 @@ int entry(int acc_no, int msgqid){
     Message atm_msg;
     memset(&atm_msg, 0, sizeof(Message));
     memset(&client_msg, 0, sizeof(Message));
-    printf("%d, %d\n", acc_no, msgqid);
+    // printf("%d, %d\n", acc_no, msgqid);
     sprintf(client_msg.mtext, "%d", acc_no);
     client_msg.mtype = MTYPE_ENTER;
     if(msgsnd(msgqid, &client_msg, strlen(client_msg.mtext), 0) == -1){
         printf("error\n");
     }
     int status = msgrcv(msgqid, &atm_msg, MESSAGE_SIZE, MTYPE_REPLY, 0);
-    printf("after msgrcv\n");
+    // printf("after msgrcv\n");
     if(status == -1){
         printf("msgrcv: Error receiving from atm\n");
         exit(0);
     }
     if(!strcmp(atm_msg.mtext, "OK") && atm_msg.mtype == MTYPE_REPLY){
-        printf("hi\n");
+        // printf("hi\n");
         return 1;
     }
     else if(!strcmp(atm_msg.mtext, "ERROR")) return 0;
@@ -185,7 +185,7 @@ int main(){
 
 while(1){
 	done = 0;
-    printf("Welcome Client\nPlease type 'ENTERx'");
+    printf("\nWelcome Client\nPlease type 'ENTERx' to select atm no. x\n");
     scanf("%s", temp);
     char c = temp[5];
     int atm_id = atoi(&c);
@@ -196,17 +196,19 @@ while(1){
     char semid[10] = "atm0";
 
     getID(atm_id, &x, &shmid, semid);
-    cout << atm_id << " " << x << " " << shmid << " " << semid << "\n";
+    // cout << atm_id << " " << x << " " << shmid << " " << semid << "\n";
     msgqid = init_msqid(x);
-    printf("%d\n", msgqid);
+    // printf("%d\n", msgqid);
 
     sem_t* lock = sem_open(semid, O_CREAT, O_RDWR, 1);
     sem_wait(lock);
-    int status = entry(acc_no, msgqid);	
+    int status = entry(acc_no, msgqid);
     if(!status){
         sem_post(lock);
         exit(0);
     }
+	printf("atm%d occupied\n", atm_id);
+	printf("welcome client %d\n", acc_no);
 	while(done != 1){
     printf("Options:--\n1. WITHDRAW\n2.DEPOSIT\n3.VIEW\n4.LEAVE\n");
     scanf("%d", &option);
@@ -224,6 +226,7 @@ while(1){
         case LEAVE :
 			sem_post(lock);
 			done = 1;
+			printf("goodbye client %d\n", acc_no);
  			break;
     }
 }

@@ -144,6 +144,7 @@ int main(int argc, char* argv[]){
 
     printf("Manager: semaphores initialized\n");
     while(1) {
+		sleep(1);
 
         if(train_count < n)
         {//While all the trains are not created
@@ -223,7 +224,6 @@ int main(int argc, char* argv[]){
 				printf("Manager: No cycle detected\n");
 			}
 
-            sleep(2);
         }
         // sleep(1);
 
