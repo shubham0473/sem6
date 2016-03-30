@@ -17,7 +17,6 @@
 
 using namespace std;
 
-
 #define MTYPE_GLOBALCC 10
 #define MESSAGE_SIZE 1000
 #define MAX_TRANSACTION_LOGS 100

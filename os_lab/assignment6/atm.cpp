@@ -78,7 +78,6 @@ int init_shm(key_t key, size_t size){
         perror("shmget: shmget failed");
         exit(1);
     }
-
     return shmid;
 }
 
