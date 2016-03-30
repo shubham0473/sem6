@@ -97,7 +97,7 @@ void view(int msgqid){
 
 }
 
-void withdraw(int msgqid){
+void withdraw(int msgqid) {
 
     printf("ENTER AMOUNT: \n");
     int amount;
