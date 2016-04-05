@@ -1,7 +1,7 @@
 all: tracert.out troute.out
 
 tracert.out: tracert.c
-	gcc tracert.c -o tracert.out -std=gnu99
+	gcc tracert.c -o tracert.out -std=gnu99 -lm
 	sudo chown -v root:root tracert.out
 	sudo chmod -v 4755 tracert.out
 
